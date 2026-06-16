@@ -1,13 +1,13 @@
 # 🐾 Pawssistant
 
-桌面宠物助手 — 一只常驻屏幕边缘的毛茸小伙伴，集成 AI 余额监控、笔记管理、应用快速启动和 Claude Code 工作区。
+桌面助手 — 一只常驻桌面的办公助手，集成 AI 余额监控、笔记管理、应用快速启动和 Claude Code 工作区。
 
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![Flutter](https://img.shields.io/badge/Flutter-3.12%2B-02569B)
 
 ## ✨ 功能
 
-- **🪟 桌面宠物** — 可拖拽的小宠物，自动吸附到屏幕边缘，旋转适配贴边方向
+- **🪟 桌面助手** — 可拖拽的，自动吸附到屏幕边缘，旋转适配贴边方向
 - **💰 AI 流量管理** — 实时显示 API 余额（支持 DeepSeek / OpenAI / Anthropic 等多平台），可配置刷新间隔和货币符号
 - **📝 笔记管理** — 待办 / 笔记列表，支持增删改查、勾选完成、导入导出 JSON，待处理与已完成 Tab 分类管理
 - **🚀 应用广场** — 快速启动常用应用的面板
@@ -19,7 +19,7 @@
 
 ```
 ┌──────────────┐
-│  🐱 Pet      │  ← 贴边宠物（拖拽切换吸附边）
+│  🐱 Pet      │  ← 贴边助手（拖拽切换吸附边）
 └──────────────┘
      │ 悬停展开
      ▼
@@ -63,7 +63,7 @@ flutter build windows --release
 ## 🏗️ 技术栈
 
 - **Flutter** — 跨平台 UI 框架
-- **desktop_multi_window** — 多窗口管理（宠物窗口 + 菜单窗口 + 设置窗口）
+- **desktop_multi_window** — 多窗口管理（助手窗口 + 菜单窗口 + 设置窗口）
 - **window_manager** — 无边框窗口、置顶、毛玻璃效果
 - **flutter_acrylic** — Windows Acrylic 半透明背景
 - **system_tray** — 系统托盘图标
@@ -73,10 +73,10 @@ flutter build windows --release
 ```
 lib/
 ├── main.dart              # 入口，多窗口路由
-├── app.dart               # 主宠物窗口
+├── app.dart               # 主助手窗口
 ├── config/                # 配置常量、平台定义、设置
 ├── screens/               # 各窗口页面
-│   ├── pet_screen.dart    # 宠物窗口
+│   ├── pet_screen.dart    # 助手窗口
 │   ├── menu_screen.dart   # 菜单窗口
 │   ├── settings_screen.dart   # 设置窗口
 │   ├── todo_edit_screen.dart  # 笔记管理窗口
