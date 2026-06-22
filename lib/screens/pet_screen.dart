@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:screen_retriever/screen_retriever.dart';
+import 'package:screen_retriever/screen_retriever.dart' show screenRetriever;
 import 'package:window_manager/window_manager.dart';
 
 import '../config/constants.dart';
@@ -441,7 +441,7 @@ class _PetScreenState extends State<PetScreen> {
 
   Future<void> _snapToNearestEdge() async {
     final bounds = await windowManager.getBounds();
-    final screenBounds = await _getScreenBoundsFor(bounds);
+    final screenBounds = await _getScreenBounds();
 
     final distances = <_SnapEdge, double>{
       _SnapEdge.left: (bounds.left - screenBounds.left).abs(),
@@ -478,7 +478,7 @@ class _PetScreenState extends State<PetScreen> {
 
   Future<Rect> _calculateMenuBounds() async {
     final petBounds = await windowManager.getBounds();
-    final screenBounds = await _getScreenBoundsFor(petBounds);
+    final screenBounds = await _getScreenBounds();
 
     double left, top, height;
 
@@ -534,24 +534,8 @@ class _PetScreenState extends State<PetScreen> {
     return Rect.fromLTWH(left, top, _menuWidth, height);
   }
 
-  Future<Rect> _getScreenBoundsFor(Rect windowBounds) async {
-    final displays = await screenRetriever.getAllDisplays();
-    final center = windowBounds.center;
-
-    for (final display in displays) {
-      final bounds = _visibleBoundsFor(display);
-      if (bounds.contains(center)) {
-        return bounds;
-      }
-    }
-
-    final display = displays.isNotEmpty
-        ? displays.first
-        : await screenRetriever.getPrimaryDisplay();
-    return _visibleBoundsFor(display);
-  }
-
-  Rect _visibleBoundsFor(Display display) {
+  Future<Rect> _getScreenBounds() async {
+    final display = await screenRetriever.getPrimaryDisplay();
     final position = display.visiblePosition ?? Offset.zero;
     final size = display.visibleSize ?? display.size;
     return position & size;

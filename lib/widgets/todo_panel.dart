@@ -210,7 +210,7 @@ class _TodoPanelState extends State<TodoPanel> {
       );
     }
     return SizedBox(
-      height: 80,
+      height: 100,
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: _todos.length,
