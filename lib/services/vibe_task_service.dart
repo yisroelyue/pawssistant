@@ -131,6 +131,7 @@ class VibeTaskService {
   VibeTaskList get tasks => _notifier.value;
 
   static final _fileNamePattern = RegExp(r'^vibe_task_(.+)\.json$');
+  static final _signalPattern = RegExp(r'^vibe_task_(.+)\.signal$');
 
   StreamSubscription? _watchSub;
   Timer? _debounceTimer;
@@ -305,13 +306,38 @@ class VibeTaskService {
       final cutoff = DateTime.now().subtract(const Duration(hours: 1));
       for (final file in dir.listSync()) {
         if (file is! File) continue;
-        if (!_fileNamePattern.hasMatch(file.uri.pathSegments.last)) continue;
-        if (file.lastModifiedSync().isBefore(cutoff)) {
-          try {
-            file.deleteSync();
-          } on FileSystemException {
-            // File gone already.
+        final name = file.uri.pathSegments.last;
+
+        // Clean stale .json files
+        final jsonMatch = _fileNamePattern.firstMatch(name);
+        if (jsonMatch != null) {
+          if (file.lastModifiedSync().isBefore(cutoff)) {
+            try {
+              file.deleteSync();
+              // Also delete corresponding .signal file
+              final signalFile = File('${dir.path}/vibe_task_${jsonMatch.group(1)}.signal');
+              if (signalFile.existsSync()) {
+                signalFile.deleteSync();
+              }
+            } on FileSystemException {
+              // File gone already.
+            }
           }
+          continue;
+        }
+
+        // Clean orphan .signal files (no corresponding .json)
+        final signalMatch = _signalPattern.firstMatch(name);
+        if (signalMatch != null) {
+          final jsonFile = File('${dir.path}/vibe_task_${signalMatch.group(1)}.json');
+          if (!jsonFile.existsSync()) {
+            try {
+              file.deleteSync();
+            } on FileSystemException {
+              // File gone already.
+            }
+          }
+          continue;
         }
       }
     } catch (_) {}

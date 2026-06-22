@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../config/constants.dart';
 import '../widgets/app_square_panel.dart';
 import '../widgets/balance_panel.dart';
+import '../widgets/favorites_panel.dart';
 import '../widgets/frosted_panel.dart';
 import '../widgets/interactive_icon.dart';
 import '../widgets/todo_panel.dart';
@@ -27,6 +28,10 @@ class MenuScreen extends StatelessWidget {
   /// 仅刷新笔记，不触发余额请求
   static final todoRefreshNotifier = ValueNotifier<int>(0);
   static void triggerTodoRefresh() => todoRefreshNotifier.value++;
+
+  /// 刷新收藏面板
+  static final favoritesRefreshNotifier = ValueNotifier<int>(0);
+  static void triggerFavoritesRefresh() => favoritesRefreshNotifier.value++;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +101,7 @@ class MenuScreen extends StatelessWidget {
     return ListView.separated(
       primary: true,
       padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: 3,
+      itemCount: 4,
       separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (_, index) {
         if (index == 0) {
@@ -104,6 +109,9 @@ class MenuScreen extends StatelessWidget {
         }
         if (index == 1) {
           return const TodoPanel();
+        }
+        if (index == 2) {
+          return const FavoritesPanel();
         }
         return const AppSquarePanel();
       },

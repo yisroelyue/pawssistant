@@ -1,0 +1,12 @@
+{
+  "apps": [
+    {
+      "id": "image_handler",
+      "name": "图像处理器",
+      "executable": "sub_app/image_handler/image_converter.exe",
+      "icon": "sub_app/image_handler/logo.svg",
+      "description": "",
+      "type": "system"
+    }
+  ]
+}

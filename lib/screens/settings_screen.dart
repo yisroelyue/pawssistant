@@ -36,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _language = 'zh';
   bool _showBalancePanel = true;
   bool _showTodoPanel = true;
+  bool _showFavoritesPanel = true;
   bool _showAppSquarePanel = true;
   bool _showVibePanel = true;
   bool _claudeHookInstalled = false;
@@ -74,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _language = s.language;
       _showBalancePanel = s.showBalancePanel;
       _showTodoPanel = s.showTodoPanel;
+      _showFavoritesPanel = s.showFavoritesPanel;
       _showAppSquarePanel = s.showAppSquarePanel;
       _showVibePanel = s.showVibePanel;
       _claudeHookInstalled = claudeHookInstalled;
@@ -218,7 +220,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const SizedBox(height: 12),
       _buildPanelToggle('我的笔记', _showTodoPanel, (v) => setState(() => _showTodoPanel = v)),
       const SizedBox(height: 8),
-      _buildPanelToggle('应用广场', _showAppSquarePanel, (v) => setState(() => _showAppSquarePanel = v)),
+      _buildPanelToggle('我的收藏', _showFavoritesPanel, (v) => setState(() => _showFavoritesPanel = v)),
+      const SizedBox(height: 8),
+      _buildPanelToggle('应用中心', _showAppSquarePanel, (v) => setState(() => _showAppSquarePanel = v)),
       const SizedBox(height: 20),
       _buildCurrencyDropdown(),
       const SizedBox(height: 14),
@@ -562,6 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       language: _language,
       showBalancePanel: _showBalancePanel,
       showTodoPanel: _showTodoPanel,
+      showFavoritesPanel: _showFavoritesPanel,
       showAppSquarePanel: _showAppSquarePanel,
       showVibePanel: _showVibePanel,
     );

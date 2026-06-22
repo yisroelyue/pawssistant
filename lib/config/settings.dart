@@ -14,8 +14,10 @@ class AppSettings {
     this.language = 'zh',
     this.showBalancePanel = true,
     this.showTodoPanel = true,
+    this.showFavoritesPanel = true,
     this.showAppSquarePanel = true,
     this.showVibePanel = true,
+    this.panelAppIds = const [],
   });
 
   String platform;
@@ -27,8 +29,10 @@ class AppSettings {
   String language;
   bool showBalancePanel;
   bool showTodoPanel;
+  bool showFavoritesPanel;
   bool showAppSquarePanel;
   bool showVibePanel;
+  List<String> panelAppIds;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
@@ -41,8 +45,13 @@ class AppSettings {
       language: json['language'] as String? ?? 'zh',
       showBalancePanel: json['showBalancePanel'] as bool? ?? true,
       showTodoPanel: json['showTodoPanel'] as bool? ?? true,
+      showFavoritesPanel: json['showFavoritesPanel'] as bool? ?? true,
       showAppSquarePanel: json['showAppSquarePanel'] as bool? ?? true,
       showVibePanel: json['showVibePanel'] as bool? ?? true,
+      panelAppIds: (json['panelAppIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -56,8 +65,10 @@ class AppSettings {
         'language': language,
         'showBalancePanel': showBalancePanel,
         'showTodoPanel': showTodoPanel,
+        'showFavoritesPanel': showFavoritesPanel,
         'showAppSquarePanel': showAppSquarePanel,
         'showVibePanel': showVibePanel,
+        'panelAppIds': panelAppIds,
       };
 }
 

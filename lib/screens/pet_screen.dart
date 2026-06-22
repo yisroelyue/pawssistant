@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -10,7 +11,10 @@ import 'package:window_manager/window_manager.dart';
 
 import '../config/constants.dart';
 import '../config/settings.dart';
+import '../screens/app_center_screen.dart';
+import '../screens/favorites_edit_screen.dart';
 import '../screens/todo_edit_screen.dart';
+import '../services/favorites_service.dart';
 
 class PetScreen extends StatefulWidget {
   const PetScreen({super.key});
@@ -24,13 +28,16 @@ enum _SnapEdge { top, bottom, left, right }
 class _PetScreenState extends State<PetScreen> {
   static const _menuGap = 8.0;
   static const _menuWidth = 400.0;
-  static const _menuHeight = 820.0;
   static const _settingsWidth = 800.0;
   static const _settingsHeight = 550.0;
   static const _vibeWidth = 200.0;
   static const _vibeHeight = 36.0;
   static const _todoEditWidth = 800.0;
   static const _todoEditHeight = 620.0;
+  static const _favoritesEditWidth = 750.0;
+  static const _favoritesEditHeight = 600.0;
+  static const _appCenterWidth = 720.0;
+  static const _appCenterHeight = 580.0;
   static const _menuChannel = WindowMethodChannel(
     'pawssistant_menu_events',
     mode: ChannelMode.unidirectional,
@@ -39,11 +46,14 @@ class _PetScreenState extends State<PetScreen> {
     'pawssistant_settings_events',
     mode: ChannelMode.unidirectional,
   );
+  static const _dropChannel = MethodChannel('pawssistant_file_drop');
 
   WindowController? _menuWindow;
   WindowController? _settingsWindow;
   WindowController? _vibeWindow;
   WindowController? _todoEditWindow;
+  WindowController? _favoritesEditWindow;
+  WindowController? _appCenterWindow;
   Timer? _hideTimer;
   bool _isHoveringPet = false;
   bool _isHoveringMenu = false;
@@ -57,7 +67,10 @@ class _PetScreenState extends State<PetScreen> {
     super.initState();
     _menuChannel.setMethodCallHandler(_handleMenuEvent);
     _settingsChannel.setMethodCallHandler(_handleSettingsEvent);
+    _dropChannel.setMethodCallHandler(_handleDropEvent);
     TodoEditScreen.editChannel.setMethodCallHandler(_handleTodoEditEvent);
+    FavoritesEditScreen.editChannel.setMethodCallHandler(_handleFavoritesEditEvent);
+    AppCenterScreen.panelChannel.setMethodCallHandler(_handleAppCenterEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initVibeWindow();
     });
@@ -68,6 +81,7 @@ class _PetScreenState extends State<PetScreen> {
     _hideTimer?.cancel();
     _menuChannel.setMethodCallHandler(null);
     _settingsChannel.setMethodCallHandler(null);
+    _dropChannel.setMethodCallHandler(null);
     super.dispose();
   }
 
@@ -109,6 +123,18 @@ class _PetScreenState extends State<PetScreen> {
         return;
       case 'toggle_vibe_panel':
         _syncVibeWindow();
+        return;
+      case 'open_favorites_editor':
+        final args = call.arguments;
+        if (args is Map) {
+          _showFavoritesEditor({
+            'folderId': args['folderId'] as String? ?? '',
+            'folderName': args['folderName'] as String? ?? '未分类',
+          });
+        }
+        return;
+      case 'open_app_center':
+        _showAppCenter();
         return;
       default:
         throw MissingPluginException('Not implemented: ${call.method}');
@@ -254,6 +280,27 @@ class _PetScreenState extends State<PetScreen> {
     _vibeWindow = null;
   }
 
+  Future<void> _handleDropEvent(MethodCall call) async {
+    switch (call.method) {
+      case 'filesDropped':
+        final files = (call.arguments as List).cast<String>();
+        for (final path in files) {
+          final file = File(path);
+          if (await file.exists()) {
+            await FavoritesService.add(path);
+          }
+        }
+        if (_menuWindow != null) {
+          try {
+            await _menuWindow!.invokeMethod('refresh_favorites');
+          } catch (_) {}
+        }
+        return;
+      default:
+        throw MissingPluginException('Not implemented: ${call.method}');
+    }
+  }
+
   Future<void> _handleTodoEditEvent(MethodCall call) async {
     switch (call.method) {
       case 'todo_saved':
@@ -266,6 +313,86 @@ class _PetScreenState extends State<PetScreen> {
       default:
         throw MissingPluginException('Not implemented: ${call.method}');
     }
+  }
+
+  Future<void> _handleFavoritesEditEvent(MethodCall call) async {
+    switch (call.method) {
+      case 'favorites_changed':
+        if (_menuWindow != null) {
+          try {
+            await _menuWindow!.invokeMethod('refresh_favorites');
+          } catch (_) {}
+        }
+        return;
+      default:
+        throw MissingPluginException('Not implemented: ${call.method}');
+    }
+  }
+
+  Future<void> _handleAppCenterEvent(MethodCall call) async {
+    switch (call.method) {
+      case 'panel_changed':
+        if (_menuWindow != null) {
+          try {
+            await _menuWindow!.invokeMethod('refresh_panel_apps');
+          } catch (_) {}
+        }
+        return;
+      default:
+        throw MissingPluginException('Not implemented: ${call.method}');
+    }
+  }
+
+  Future<void> _showFavoritesEditor(Map<String, dynamic> args) async {
+    try {
+      await _favoritesEditWindow?.hide();
+    } catch (_) {}
+    _favoritesEditWindow = null;
+
+    final display = await screenRetriever.getPrimaryDisplay();
+    final screenSize = display.visibleSize ?? display.size;
+    final left = (screenSize.width - _favoritesEditWidth) / 2;
+    final top = (screenSize.height - _favoritesEditHeight) / 2;
+
+    final createdWindow = await WindowController.create(
+      WindowConfiguration(
+        arguments: jsonEncode({
+          'type': 'favorites_edit',
+          'folderId': args['folderId'],
+          'folderName': args['folderName'],
+          'left': left,
+          'top': top,
+          'width': _favoritesEditWidth,
+          'height': _favoritesEditHeight,
+        }),
+      ),
+    );
+    _favoritesEditWindow = createdWindow;
+  }
+
+  Future<void> _showAppCenter() async {
+    try {
+      await _appCenterWindow?.hide();
+    } catch (_) {}
+    _appCenterWindow = null;
+
+    final display = await screenRetriever.getPrimaryDisplay();
+    final screenSize = display.visibleSize ?? display.size;
+    final left = (screenSize.width - _appCenterWidth) / 2;
+    final top = (screenSize.height - _appCenterHeight) / 2;
+
+    final createdWindow = await WindowController.create(
+      WindowConfiguration(
+        arguments: jsonEncode({
+          'type': 'app_center',
+          'left': left,
+          'top': top,
+          'width': _appCenterWidth,
+          'height': _appCenterHeight,
+        }),
+      ),
+    );
+    _appCenterWindow = createdWindow;
   }
 
   Future<void> _showTodoEditor(Map<String, dynamic> item) async {
@@ -353,29 +480,35 @@ class _PetScreenState extends State<PetScreen> {
     final petBounds = await windowManager.getBounds();
     final screenBounds = await _getScreenBoundsFor(petBounds);
 
-    double left, top;
+    double left, top, height;
 
     switch (_snapEdge) {
       case _SnapEdge.top:
         // 平边在上 → 菜单在下方
         left = petBounds.center.dx - _menuWidth / 2;
         top = petBounds.bottom + _menuGap;
+        // 下方可用高度 = 工作区高度 - pet高度 - 间隙，不遮挡 pet
+        height = screenBounds.bottom - top;
         // 下方空间不够则改到上方
-        if (top + _menuHeight > screenBounds.bottom) {
-          top = petBounds.top - _menuGap - _menuHeight;
+        if (height < 150) {
+          height = petBounds.top - _menuGap - screenBounds.top;
+          top = screenBounds.top;
         }
       case _SnapEdge.bottom:
         // 平边在下 → 菜单在上方
         left = petBounds.center.dx - _menuWidth / 2;
-        top = petBounds.top - _menuGap - _menuHeight;
+        height = petBounds.top - _menuGap - screenBounds.top;
+        top = petBounds.top - _menuGap - height;
         // 上方空间不够则改到下方
-        if (top < screenBounds.top) {
+        if (height < 150) {
           top = petBounds.bottom + _menuGap;
+          height = screenBounds.bottom - top;
         }
       case _SnapEdge.left:
         // 平边在左 → 菜单在右侧
         left = petBounds.right + _menuGap;
-        top = petBounds.center.dy - _menuHeight / 2;
+        top = screenBounds.top;
+        height = screenBounds.height;
         // 右侧空间不够则改到左侧
         if (left + _menuWidth > screenBounds.right) {
           left = petBounds.left - _menuGap - _menuWidth;
@@ -383,7 +516,8 @@ class _PetScreenState extends State<PetScreen> {
       case _SnapEdge.right:
         // 平边在右 → 菜单在左侧
         left = petBounds.left - _menuGap - _menuWidth;
-        top = petBounds.center.dy - _menuHeight / 2;
+        top = screenBounds.top;
+        height = screenBounds.height;
         // 左侧空间不够则改到右侧
         if (left < screenBounds.left) {
           left = petBounds.right + _menuGap;
@@ -392,9 +526,12 @@ class _PetScreenState extends State<PetScreen> {
 
     // 钳入屏幕边界
     left = left.clamp(screenBounds.left, screenBounds.right - _menuWidth);
-    top = top.clamp(screenBounds.top, screenBounds.bottom - _menuHeight);
+    top = top.clamp(screenBounds.top, screenBounds.bottom);
+    if (top + height > screenBounds.bottom) {
+      height = screenBounds.bottom - top;
+    }
 
-    return Rect.fromLTWH(left, top, _menuWidth, _menuHeight);
+    return Rect.fromLTWH(left, top, _menuWidth, height);
   }
 
   Future<Rect> _getScreenBoundsFor(Rect windowBounds) async {

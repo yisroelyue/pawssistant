@@ -9,7 +9,7 @@ class PlatformConfig {
   PlatformConfig._();
 
   static const platforms = <String, PlatformInfo>{
-    'deepseek': PlatformInfo('DeepSeek', 'deepseek', 'assets/png/plugins/deepseek.ico'),
+    'deepseek': PlatformInfo('DeepSeek', 'deepseek', 'assets/png/plugins/deepseek.png'),
     'openai': PlatformInfo('OpenAI', 'openai', 'assets/png/plugins/openai.png'),
     'anthropic': PlatformInfo('Anthropic', 'anthropic', 'assets/png/plugins/anthropic.png'),
     'doubao': PlatformInfo('豆包', 'doubao', 'assets/png/plugins/doubao.png'),
@@ -26,6 +26,6 @@ class PlatformConfig {
   }
 
   static String assetPath(String key) {
-    return platforms[key]?.asset ?? 'assets/png/plugins/deepseek.ico';
+    return platforms[key]?.asset ?? 'assets/png/plugins/deepseek.png';
   }
 }

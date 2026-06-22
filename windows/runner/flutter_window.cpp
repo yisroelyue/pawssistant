@@ -4,6 +4,7 @@
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <optional>
+#include <shellapi.h>
 #include <vector>
 
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
@@ -16,9 +17,13 @@ constexpr char kSetRoundedRegionMethod[] = "setRoundedRegion";
 constexpr char kClearRoundedRegionMethod[] = "clearRoundedRegion";
 constexpr char kRadiusArgument[] = "radius";
 
+constexpr char kDropChannelName[] = "pawssistant_file_drop";
+
 using WindowShapeChannel = flutter::MethodChannel<flutter::EncodableValue>;
+using DropChannel = flutter::MethodChannel<flutter::EncodableValue>;
 
 std::vector<std::unique_ptr<WindowShapeChannel>> g_window_shape_channels;
+std::vector<std::unique_ptr<DropChannel>> g_drop_channels;
 
 double GetNumberArgument(const flutter::EncodableValue& value,
                          double fallback) {
@@ -148,6 +153,20 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   RegisterWindowShapeChannel(flutter_controller_->engine()->messenger(),
                              GetHandle());
+
+  // Register file-drop channel so the pet window can receive dragged files.
+  auto drop_channel = std::make_unique<DropChannel>(
+      flutter_controller_->engine()->messenger(), kDropChannelName,
+      &flutter::StandardMethodCodec::GetInstance());
+  drop_channel->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+             result) { result->NotImplemented(); });
+  g_drop_channels.emplace_back(std::move(drop_channel));
+
+  // Enable native file drag-and-drop on this window.
+  DragAcceptFiles(GetHandle(), TRUE);
+
   DesktopMultiWindowSetWindowCreatedCallback([](void *controller) {
     auto *flutter_view_controller =
         reinterpret_cast<flutter::FlutterViewController *>(controller);
@@ -208,6 +227,38 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_DROPFILES: {
+      HDROP hDrop = reinterpret_cast<HDROP>(wparam);
+      UINT fileCount = DragQueryFileW(hDrop, 0xFFFFFFFF, nullptr, 0);
+
+      flutter::EncodableList fileList;
+      for (UINT i = 0; i < fileCount; i++) {
+        UINT pathLength = DragQueryFileW(hDrop, i, nullptr, 0);
+        std::wstring filePath(pathLength + 1, L'\0');
+        DragQueryFileW(hDrop, i, filePath.data(),
+                       static_cast<UINT>(filePath.size()));
+        filePath.resize(pathLength);
+
+        // Convert wide string to UTF-8.
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1,
+                                          nullptr, 0, nullptr, nullptr);
+        if (utf8Len > 0) {
+          std::string utf8Path(utf8Len, '\0');
+          WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), -1,
+                              utf8Path.data(), utf8Len, nullptr, nullptr);
+          utf8Path.resize(utf8Len - 1);  // strip null terminator
+          fileList.push_back(flutter::EncodableValue(utf8Path));
+        }
+      }
+      DragFinish(hDrop);
+
+      if (!g_drop_channels.empty()) {
+        g_drop_channels[0]->InvokeMethod(
+            "filesDropped",
+            std::make_unique<flutter::EncodableValue>(fileList));
+      }
+      return 0;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

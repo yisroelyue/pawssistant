@@ -50,9 +50,9 @@ class BalanceService {
     final settings = await SettingsService.load();
 
     final uri = Uri.parse(settings.balanceUrl.trim());
-    debugPrint('━━━ 余额请求 ━━━');
-    debugPrint('URL: $uri');
-    debugPrint('API Key: ${settings.apiKey.isEmpty ? "(未配置)" : "${settings.apiKey.substring(0, min(8, settings.apiKey.length))}..."}');
+    // debugPrint('━━━ 余额请求 ━━━');
+    // debugPrint('URL: $uri');
+    // debugPrint('API Key: ${settings.apiKey.isEmpty ? "(未配置)" : "${settings.apiKey.substring(0, min(8, settings.apiKey.length))}..."}');
 
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 3);

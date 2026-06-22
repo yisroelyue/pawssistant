@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../config/platform.dart';
 import '../config/settings.dart';
@@ -21,6 +22,7 @@ class BalancePanelState extends State<BalancePanel> {
   bool _fetchFailed = false;
   bool _loading = true;
   bool _showVibePanel = true;
+  bool _headerHovered = false;
 
   @override
   void initState() {
@@ -133,12 +135,18 @@ class BalancePanelState extends State<BalancePanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            // _buildBalanceTitle(),
+            const SizedBox(height: 6),
             _buildBalance(),
           ],
         ),
       ),
     );
+  }
+
+  void _openSettings() {
+    MenuScreen.menuChannel.invokeMethod('open_settings');
   }
 
   Widget _buildHeader() {
@@ -158,47 +166,98 @@ class BalancePanelState extends State<BalancePanel> {
       statusText = '...';
     }
 
-    return Row(
-      children: [
-        if (_loading)
-          const SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white54,
-            ),
-          )
-        else
-          Image.asset(
-            PlatformConfig.assetPath(_platform),
-            width: 22,
-            height: 22,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _headerHovered = true),
+      onExit: (_) => setState(() => _headerHovered = false),
+      child: GestureDetector(
+        onTap: _openSettings,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: _headerHovered
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
           ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            '账户余额',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            children: [
+              if (_loading)
+                const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white54,
+                  ),
+                )
+              else
+                Image.asset(
+                  PlatformConfig.assetPath(_platform),
+                  width: 22,
+                  height: 22,
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  PlatformConfig.platforms[_platform]?.name ?? '账户余额',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                statusText,
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+              const SizedBox(width: 6),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: _headerHovered ? 1.0 : 0.0,
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white38,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ),
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          statusText,
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
-        ),
-      ],
+      ),
     );
   }
+
+  // Widget _buildBalanceTitle() {
+  //   return Row(
+  //     children: [
+  //       SvgPicture.asset(
+  //         'assets/svg/余额.svg',
+  //         width: 18,
+  //         height: 18,
+  //         // colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+  //       ),
+  //       const SizedBox(width: 6),
+  //       const Text(
+  //         '账户余额',
+  //         style: TextStyle(
+  //           color: Colors.white,
+  //           fontSize: 13,
+  //           fontWeight: FontWeight.w500,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildBalance() {
     if (_loading) {
@@ -255,7 +314,7 @@ class BalancePanelState extends State<BalancePanel> {
           '$symbol ${b.totalBalance.toStringAsFixed(2)}',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 32,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),

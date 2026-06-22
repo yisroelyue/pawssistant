@@ -21,6 +21,7 @@ class _TodoPanelState extends State<TodoPanel> {
   final _addFocus = FocusNode();
   bool _inputFocused = false;
   String? _hoveredId;
+  bool _headerHovered = false;
 
   @override
   void initState() {
@@ -131,32 +132,68 @@ class _TodoPanelState extends State<TodoPanel> {
     );
   }
 
+  void _openAllTodos() {
+    MenuScreen.menuChannel.invokeMethod('open_todo_editor', {
+      'id': '',
+      'title': '',
+    });
+  }
+
   Widget _buildHeader() {
     final total = _todos.length;
-    return Row(
-      children: [
-        SvgPicture.asset(
-          'assets/svg/笔记.svg',
-          width: 22,
-          height: 22,
-        ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            '我的笔记',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _headerHovered = true),
+      onExit: (_) => setState(() => _headerHovered = false),
+      child: GestureDetector(
+        onTap: _openAllTodos,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: _headerHovered
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                'assets/svg/笔记.svg',
+                width: 22,
+                height: 22,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  '我的笔记',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (total > 0)
+                Text(
+                  '$total',
+                  style: const TextStyle(color: Colors.white38, fontSize: 13),
+                ),
+              const SizedBox(width: 6),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: _headerHovered ? 1.0 : 0.0,
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white38,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ),
-        if (total > 0)
-          Text(
-            '$total',
-            style: const TextStyle(color: Colors.white38, fontSize: 13),
-          ),
-      ],
+      ),
     );
   }
 
@@ -173,7 +210,7 @@ class _TodoPanelState extends State<TodoPanel> {
       );
     }
     return SizedBox(
-      height: 150,
+      height: 80,
       child: ListView.builder(
         padding: EdgeInsets.zero,
         itemCount: _todos.length,
@@ -221,6 +258,15 @@ class _TodoPanelState extends State<TodoPanel> {
                 ),
               ),
             ),
+            if (isHovered)
+              InteractiveIcon(
+                size: 28,
+                onTap: () async {
+                  await TodoService.remove(item.id);
+                  await _fetch();
+                },
+                child: const Icon(Icons.close, color: Colors.white24, size: 16),
+              ),
           ],
         ),
       ),
@@ -230,7 +276,7 @@ class _TodoPanelState extends State<TodoPanel> {
   Widget _buildAddRow() {
     return Row(
       children: [
-        const Icon(Icons.add, color: Colors.white38, size: 18),
+        const Icon(Icons.add, color: Colors.white, size: 18),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(
@@ -240,7 +286,7 @@ class _TodoPanelState extends State<TodoPanel> {
             style: const TextStyle(color: Colors.white, fontSize: 15),
             decoration: InputDecoration(
               hintText: '添加新笔记...',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55)),
               isDense: true,
               contentPadding: EdgeInsets.zero,
               border: InputBorder.none,
@@ -251,7 +297,7 @@ class _TodoPanelState extends State<TodoPanel> {
         InteractiveIcon(
           size: 26,
           onTap: _addTodo,
-          child: const Icon(Icons.send_rounded, color: Colors.white54, size: 14),
+          child: const Icon(Icons.send_rounded, color: Colors.white, size: 14),
         ),
       ],
     );

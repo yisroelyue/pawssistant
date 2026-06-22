@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
-
 class TodoItem {
   TodoItem({
     required this.id,
@@ -39,7 +37,13 @@ class TodoService {
   TodoService._();
 
   static Future<File> _file() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final home = Platform.environment['USERPROFILE'] ??
+        Platform.environment['HOME'] ??
+        '.';
+    final dir = Directory('$home/.pawssistant');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
     return File('${dir.path}/pawssistant_todos.json');
   }
 

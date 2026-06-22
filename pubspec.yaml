@@ -44,6 +44,7 @@ dependencies:
   desktop_multi_window: ^0.3.0
   flutter_svg: ^2.0.17
   flutter_acrylic: ^1.1.4
+  file_picker: ^8.1.7
 
 dev_dependencies:
   flutter_test:

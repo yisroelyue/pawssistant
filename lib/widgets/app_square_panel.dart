@@ -1,25 +1,49 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../config/settings.dart';
 import '../screens/menu_screen.dart';
 
-class AppItem {
-  const AppItem({required this.icon, required this.name});
-  final IconData icon;
-  final String name;
-}
+class AppInfo {
+  const AppInfo({
+    required this.id,
+    required this.name,
+    required this.executable,
+    required this.icon,
+    this.description = '',
+    this.type = 'system',
+  });
 
-const placeholderApps = [
-  AppItem(icon: Icons.calculate, name: '计算器'),
-  AppItem(icon: Icons.calendar_today, name: '日历'),
-  AppItem(icon: Icons.cloud, name: '天气'),
-  AppItem(icon: Icons.music_note, name: '音乐'),
-  AppItem(icon: Icons.translate, name: '翻译'),
-  AppItem(icon: Icons.note, name: '笔记'),
-  AppItem(icon: Icons.access_time, name: '时钟'),
-  AppItem(icon: Icons.favorite_border, name: '健康'),
-];
+  final String id;
+  final String name;
+  final String executable;
+  final String icon;
+  final String description;
+  final String type; // 'system' or 'custom'
+
+  factory AppInfo.fromJson(Map<String, dynamic> json) {
+    return AppInfo(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      executable: json['executable'] as String,
+      icon: json['icon'] as String,
+      description: json['description'] as String? ?? '',
+      type: json['type'] as String? ?? 'system',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'executable': executable,
+        'icon': icon,
+        'description': description,
+        'type': type,
+      };
+}
 
 class AppSquarePanel extends StatefulWidget {
   const AppSquarePanel({super.key});
@@ -31,6 +55,9 @@ class AppSquarePanel extends StatefulWidget {
 class _AppSquarePanelState extends State<AppSquarePanel> {
   bool _panelEnabled = true;
   bool _loading = true;
+  bool _headerHovered = false;
+  List<AppInfo> _apps = [];
+  int? _hoveredIndex;
 
   @override
   void initState() {
@@ -50,12 +77,70 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
   }
 
   Future<void> _fetch() async {
+    setState(() => _loading = true);
+
     final settings = await SettingsService.load();
+    _panelEnabled = settings.showAppSquarePanel;
+
+    final custom = AppConfig.loadCustomApps();
+    final system = AppConfig.loadSystemApps();
+    final allApps = [...custom, ...system];
+
+    if (settings.panelAppIds.isNotEmpty) {
+      // Show apps matching the stored IDs, in order.
+      _apps = settings.panelAppIds
+          .map((id) => allApps.where((a) => a.id == id))
+          .expand((m) => m)
+          .take(8)
+          .toList();
+    } else {
+      // Default: custom first, then system, max 8.
+      _apps = allApps.take(8).toList();
+    }
+
     if (!mounted) return;
-    setState(() {
-      _panelEnabled = settings.showAppSquarePanel;
-      _loading = false;
-    });
+    setState(() => _loading = false);
+  }
+
+  void _openAppCenter() {
+    MenuScreen.menuChannel.invokeMethod('open_app_center');
+  }
+
+  Future<void> _launchApp(AppInfo app) async {
+    final exePath = AppConfig.resolvePath(app.executable);
+    try {
+      if (Platform.isWindows) {
+        await Process.start('cmd', ['/c', 'start', '', exePath],
+            runInShell: false);
+      } else {
+        await Process.start(
+          exePath,
+          [],
+          runInShell: true,
+          workingDirectory: File(exePath).parent.path,
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to launch app "${app.name}": $e');
+    }
+  }
+
+  Widget _buildAppIcon(AppInfo app) {
+    final iconPath = AppConfig.resolvePath(app.icon);
+    final file = File(iconPath);
+    if (!file.existsSync()) {
+      return const Icon(Icons.apps, color: Colors.white70, size: 22);
+    }
+    if (app.icon.endsWith('.svg')) {
+      return SvgPicture.file(file, width: 22, height: 22);
+    }
+    return Image.file(
+      file,
+      width: 22,
+      height: 22,
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.apps, color: Colors.white70, size: 22),
+    );
   }
 
   @override
@@ -74,7 +159,22 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
           children: [
             _buildHeader(),
             const SizedBox(height: 12),
-            _buildGrid(),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ),
+              )
+            else
+              _buildContent(),
           ],
         ),
       ),
@@ -82,29 +182,69 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
   }
 
   Widget _buildHeader() {
-    return Row(
-      children: [
-        SvgPicture.asset(
-          'assets/svg/应用.svg',
-          width: 22,
-          height: 22,
-        ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            '应用广场',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _headerHovered = true),
+      onExit: (_) => setState(() => _headerHovered = false),
+      child: GestureDetector(
+        onTap: _openAppCenter,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: _headerHovered
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                'assets/svg/应用.svg',
+                width: 22,
+                height: 22,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  '应用中心',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 150),
+                opacity: _headerHovered ? 1.0 : 0.0,
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white38,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildGrid() {
+  Widget _buildContent() {
+    if (_apps.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: Text(
+            '暂无应用，请编辑 apps_config.json 添加',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+      );
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -114,46 +254,150 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
         crossAxisSpacing: 10,
         childAspectRatio: 0.85,
       ),
-      itemCount: placeholderApps.length,
-      itemBuilder: (_, index) => _buildAppTile(placeholderApps[index]),
+      itemCount: _apps.length,
+      itemBuilder: (_, index) => _buildAppTile(_apps[index], index),
     );
   }
 
-  Widget _buildAppTile(AppItem app) {
+  Widget _buildAppTile(AppInfo app, int index) {
+    final isHovered = _hoveredIndex == index;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hoveredIndex = index),
+      onExit: (_) => setState(() => _hoveredIndex = null),
       child: GestureDetector(
-        onTap: () {
-          // Placeholder — no action yet
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
+        onTap: () => _launchApp(app),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 2),
+          decoration: BoxDecoration(
+            color: isHovered
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: app.type == 'system'
+                      ? _buildAppIcon(app)
+                      : Text(
+                          app.name.isNotEmpty ? app.name[0] : '?',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
               ),
-              child: Icon(
-                app.icon,
-                color: Colors.white70,
-                size: 26,
+              const SizedBox(height: 4),
+              Text(
+                app.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              app.name,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Shared path/config helpers used by both the panel and the app-center screen.
+class AppConfig {
+  AppConfig._();
+
+  /// Walk up from the executable's directory until we find `sub_app/`.
+  static String get projectRoot {
+    try {
+      var dir = Directory(Platform.resolvedExecutable).parent;
+      while (dir.path != dir.parent.path) {
+        if (Directory('${dir.path}/sub_app').existsSync()) {
+          return dir.path;
+        }
+        dir = dir.parent;
+      }
+    } catch (_) {}
+    return Directory.current.path;
+  }
+
+  static String get systemConfigPath =>
+      '$projectRoot/lib/config/apps_config.json';
+
+  static String get _customConfigPath {
+    final home = Platform.environment['USERPROFILE'] ??
+        Platform.environment['HOME'] ??
+        '.';
+    return '$home/.pawssistant/custom_apps.json';
+  }
+
+  static String resolvePath(String raw) {
+    // Already absolute.
+    if (Platform.isWindows && raw.length >= 2 && raw[1] == ':') return raw;
+    if (raw.startsWith('/')) return raw;
+    return '$projectRoot/$raw';
+  }
+
+  static List<AppInfo> loadSystemApps() {
+    try {
+      final file = File(systemConfigPath);
+      if (!file.existsSync()) return [];
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      final list = json['apps'] as List<dynamic>?;
+      if (list == null) return [];
+      return list
+          .map((e) => AppInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to load system apps config: $e');
+      return [];
+    }
+  }
+
+  static List<AppInfo> loadCustomApps() {
+    try {
+      final file = File(_customConfigPath);
+      if (!file.existsSync()) return [];
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      final list = json['apps'] as List<dynamic>?;
+      if (list == null) return [];
+      return list
+          .map((e) => AppInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to load custom apps: $e');
+      return [];
+    }
+  }
+
+  static Future<void> saveCustomApps(List<AppInfo> apps) async {
+    try {
+      final dir = Directory(_customConfigPath).parent;
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      final file = File(_customConfigPath);
+      await file.writeAsString(
+        const JsonEncoder.withIndent('  ').convert({
+          'apps': apps.map((a) => a.toJson()).toList(),
+        }),
+      );
+    } catch (e) {
+      debugPrint('Failed to save custom apps: $e');
+    }
   }
 }

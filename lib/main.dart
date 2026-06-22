@@ -13,6 +13,8 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'config/constants.dart';
 import 'config/settings.dart';
+import 'screens/app_center_screen.dart';
+import 'screens/favorites_edit_screen.dart';
 import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/todo_edit_screen.dart';
@@ -49,6 +51,25 @@ Future<void> main(List<String> args) async {
     await Window.initialize();
     await _configureTodoEditWindow(windowController, windowArguments);
     runApp(const TodoEditScreen());
+    return;
+  }
+  if (windowArguments['type'] == 'favorites_edit') {
+    await Window.initialize();
+    await _configureFavoritesEditWindow(windowController, windowArguments);
+    final fid = windowArguments['folderId'] as String?;
+    runApp(FavoritesEditScreen(
+      initialFolderId: (fid != null && fid.isNotEmpty) ? fid : null,
+    ));
+    return;
+  }
+  if (windowArguments['type'] == 'app_center') {
+    await Window.initialize();
+    await _configureAppCenterWindow(windowController, windowArguments);
+    runApp(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
+      home: const AppCenterScreen(),
+    ));
     return;
   }
 
@@ -152,6 +173,12 @@ Future<void> _configureMenuWindow(
         return;
       case 'refresh_todos':
         MenuScreen.triggerTodoRefresh();
+        return;
+      case 'refresh_favorites':
+        MenuScreen.triggerFavoritesRefresh();
+        return;
+      case 'refresh_panel_apps':
+        MenuScreen.triggerRefresh();
         return;
       default:
         throw UnimplementedError('Not implemented: ${call.method}');
@@ -266,6 +293,66 @@ Future<void> _configureTodoEditWindow(
       await windowManager.setBackgroundColor(Colors.transparent);
       await windowManager.setSkipTaskbar(false);
       await windowManager.setTitle('Pawssistant Todo Edit');
+      await windowManager.show();
+      await _applySettingsWindowEffects();
+    },
+  );
+}
+
+Future<void> _configureFavoritesEditWindow(
+  WindowController windowController,
+  Map<String, dynamic> arguments,
+) async {
+  final bounds = _boundsFromArguments(arguments);
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: bounds.size,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+      alwaysOnTop: false,
+    ),
+    () async {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setMinimumSize(bounds.size);
+      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setBounds(bounds);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setBackgroundColor(Colors.transparent);
+      await windowManager.setSkipTaskbar(false);
+      await windowManager.setTitle('Pawssistant Favorites');
+      await windowManager.show();
+      await _applySettingsWindowEffects();
+    },
+  );
+}
+
+Future<void> _configureAppCenterWindow(
+  WindowController windowController,
+  Map<String, dynamic> arguments,
+) async {
+  final bounds = _boundsFromArguments(arguments);
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: bounds.size,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+      alwaysOnTop: false,
+    ),
+    () async {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setMinimumSize(bounds.size);
+      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setBounds(bounds);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setBackgroundColor(Colors.transparent);
+      await windowManager.setSkipTaskbar(false);
+      await windowManager.setTitle('Pawssistant App Center');
       await windowManager.show();
       await _applySettingsWindowEffects();
     },
