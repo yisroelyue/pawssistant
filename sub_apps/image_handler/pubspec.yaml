@@ -1,0 +1,19 @@
+name: image_handler_app
+description: Image format conversion sub-app for Pawssistant
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pawssistant:
+    path: ../..
+  pawssistant_plugin_image_processer:
+    path: ../../../pawssistant_plugin_image_processer
+
+flutter:
+  assets:
+    - assets/logo.svg
