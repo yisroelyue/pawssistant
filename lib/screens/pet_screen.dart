@@ -38,6 +38,8 @@ class _PetScreenState extends State<PetScreen> {
   static const _favoritesEditHeight = 600.0;
   static const _appCenterWidth = 720.0;
   static const _appCenterHeight = 580.0;
+  static const _subAppDefaultWidth = 800.0;
+  static const _subAppDefaultHeight = 600.0;
   static const _menuChannel = WindowMethodChannel(
     'pawssistant_menu_events',
     mode: ChannelMode.unidirectional,
@@ -54,6 +56,7 @@ class _PetScreenState extends State<PetScreen> {
   WindowController? _todoEditWindow;
   WindowController? _favoritesEditWindow;
   WindowController? _appCenterWindow;
+  WindowController? _subAppWindow;
   Timer? _hideTimer;
   bool _isHoveringPet = false;
   bool _isHoveringMenu = false;
@@ -135,6 +138,10 @@ class _PetScreenState extends State<PetScreen> {
         return;
       case 'open_app_center':
         _showAppCenter();
+        return;
+      case 'launch_sub_app':
+        final args = call.arguments as Map;
+        _showSubAppWindow(args['subAppId'] as String);
         return;
       default:
         throw MissingPluginException('Not implemented: ${call.method}');
@@ -338,6 +345,10 @@ class _PetScreenState extends State<PetScreen> {
           } catch (_) {}
         }
         return;
+      case 'launch_sub_app':
+        final args = call.arguments as Map;
+        _showSubAppWindow(args['subAppId'] as String);
+        return;
       default:
         throw MissingPluginException('Not implemented: ${call.method}');
     }
@@ -393,6 +404,32 @@ class _PetScreenState extends State<PetScreen> {
       ),
     );
     _appCenterWindow = createdWindow;
+  }
+
+  Future<void> _showSubAppWindow(String subAppId) async {
+    try {
+      await _subAppWindow?.hide();
+    } catch (_) {}
+    _subAppWindow = null;
+
+    final display = await screenRetriever.getPrimaryDisplay();
+    final screenSize = display.visibleSize ?? display.size;
+    final left = (screenSize.width - _subAppDefaultWidth) / 2;
+    final top = (screenSize.height - _subAppDefaultHeight) / 2;
+
+    final createdWindow = await WindowController.create(
+      WindowConfiguration(
+        arguments: jsonEncode({
+          'type': 'sub_app',
+          'subAppId': subAppId,
+          'left': left,
+          'top': top,
+          'width': _subAppDefaultWidth,
+          'height': _subAppDefaultHeight,
+        }),
+      ),
+    );
+    _subAppWindow = createdWindow;
   }
 
   Future<void> _showTodoEditor(Map<String, dynamic> item) async {

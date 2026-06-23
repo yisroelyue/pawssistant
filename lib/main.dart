@@ -13,10 +13,12 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'config/constants.dart';
 import 'config/settings.dart';
+import 'core/sub_app_bootstrap.dart';
 import 'screens/app_center_screen.dart';
 import 'screens/favorites_edit_screen.dart';
 import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/sub_app_window_screen.dart';
 import 'screens/todo_edit_screen.dart';
 import 'screens/vibe_task_screen.dart';
 
@@ -27,6 +29,7 @@ const _windowShapeChannel = MethodChannel('pawssistant_window_shape');
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
+  bootstrapSubApps();
 
   final windowController = await WindowController.fromCurrentEngine();
   final windowArguments = _parseWindowArguments(windowController.arguments);
@@ -70,6 +73,13 @@ Future<void> main(List<String> args) async {
       theme: ThemeData.dark(),
       home: const AppCenterScreen(),
     ));
+    return;
+  }
+  if (windowArguments['type'] == 'sub_app') {
+    await Window.initialize();
+    await _configureSubAppWindow(windowController, windowArguments);
+    final subAppId = windowArguments['subAppId'] as String? ?? '';
+    runApp(SubAppWindowScreen(subAppId: subAppId));
     return;
   }
 
@@ -355,6 +365,36 @@ Future<void> _configureAppCenterWindow(
       await windowManager.setTitle('Pawssistant App Center');
       await windowManager.show();
       await _applySettingsWindowEffects();
+    },
+  );
+}
+
+Future<void> _configureSubAppWindow(
+  WindowController windowController,
+  Map<String, dynamic> arguments,
+) async {
+  final bounds = _boundsFromArguments(arguments);
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: bounds.size,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+      alwaysOnTop: false,
+    ),
+    () async {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setMinimumSize(bounds.size);
+      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setBounds(bounds);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setBackgroundColor(Colors.transparent);
+      await windowManager.setSkipTaskbar(false);
+      await windowManager.setTitle('Pawssistant Sub App');
+      await windowManager.show();
+      await _applyAcrylic(); // 只应用毛玻璃，不添加圆角
     },
   );
 }

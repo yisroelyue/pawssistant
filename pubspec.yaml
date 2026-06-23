@@ -45,6 +45,10 @@ dependencies:
   flutter_svg: ^2.0.17
   flutter_acrylic: ^1.1.4
   file_picker: ^8.1.7
+  image_handler_app:
+    path: sub_apps/image_handler
+  pawssistant_plugin_image_processer:
+    path: ../pawssistant_plugin_image_processer
 
 dev_dependencies:
   flutter_test:

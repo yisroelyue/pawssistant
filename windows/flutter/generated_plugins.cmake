@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_multi_window
   flutter_acrylic
+  pawssistant_plugin_image_processer
   screen_retriever_windows
   system_tray
   window_manager

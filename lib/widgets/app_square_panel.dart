@@ -11,27 +11,33 @@ class AppInfo {
   const AppInfo({
     required this.id,
     required this.name,
-    required this.executable,
+    this.executable,
+    this.subAppId,
     required this.icon,
     this.description = '',
     this.type = 'system',
+    this.launchType = 'executable',
   });
 
   final String id;
   final String name;
-  final String executable;
+  final String? executable; // null when launchType == 'plugin'
+  final String? subAppId; // non-null when launchType == 'plugin'
   final String icon;
   final String description;
   final String type; // 'system' or 'custom'
+  final String launchType; // 'plugin' or 'executable'
 
   factory AppInfo.fromJson(Map<String, dynamic> json) {
     return AppInfo(
       id: json['id'] as String,
       name: json['name'] as String,
-      executable: json['executable'] as String,
+      executable: json['executable'] as String?,
+      subAppId: json['subAppId'] as String?,
       icon: json['icon'] as String,
       description: json['description'] as String? ?? '',
       type: json['type'] as String? ?? 'system',
+      launchType: json['launchType'] as String? ?? 'executable',
     );
   }
 
@@ -39,9 +45,11 @@ class AppInfo {
         'id': id,
         'name': name,
         'executable': executable,
+        'subAppId': subAppId,
         'icon': icon,
         'description': description,
         'type': type,
+        'launchType': launchType,
       };
 }
 
@@ -107,22 +115,34 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
   }
 
   Future<void> _launchApp(AppInfo app) async {
-    final exePath = AppConfig.resolvePath(app.executable);
-    try {
-      if (Platform.isWindows) {
-        await Process.start('cmd', ['/c', 'start', '', exePath],
-            runInShell: false);
-      } else {
-        await Process.start(
-          exePath,
-          [],
-          runInShell: true,
-          workingDirectory: File(exePath).parent.path,
-        );
-      }
-    } catch (e) {
-      debugPrint('Failed to launch app "${app.name}": $e');
+    if (app.launchType == 'plugin' && app.subAppId != null) {
+      await _launchPluginApp(app.subAppId!);
+      return;
     }
+    if (app.executable != null) {
+      final exePath = AppConfig.resolvePath(app.executable!);
+      try {
+        if (Platform.isWindows) {
+          await Process.start('cmd', ['/c', 'start', '', exePath],
+              runInShell: false);
+        } else {
+          await Process.start(
+            exePath,
+            [],
+            runInShell: true,
+            workingDirectory: File(exePath).parent.path,
+          );
+        }
+      } catch (e) {
+        debugPrint('Failed to launch app "${app.name}": $e');
+      }
+    }
+  }
+
+  Future<void> _launchPluginApp(String subAppId) async {
+    MenuScreen.menuChannel.invokeMethod('launch_sub_app', {
+      'subAppId': subAppId,
+    });
   }
 
   Widget _buildAppIcon(AppInfo app) {
@@ -326,7 +346,8 @@ class AppConfig {
     try {
       var dir = Directory(Platform.resolvedExecutable).parent;
       while (dir.path != dir.parent.path) {
-        if (Directory('${dir.path}/sub_app').existsSync()) {
+        if (Directory('${dir.path}/sub_app').existsSync() ||
+            Directory('${dir.path}/sub_apps').existsSync()) {
           return dir.path;
         }
         dir = dir.parent;

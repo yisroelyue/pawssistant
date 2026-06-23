@@ -3,9 +3,11 @@
     {
       "id": "image_handler",
       "name": "图像处理器",
-      "executable": "sub_app/image_handler/image_converter.exe",
-      "icon": "sub_app/image_handler/logo.svg",
-      "description": "",
+      "launchType": "plugin",
+      "subAppId": "image_handler",
+      "executable": null,
+      "icon": "sub_apps/image_handler/assets/logo.svg",
+      "description": "图片格式转换与处理",
       "type": "system"
     }
   ]
