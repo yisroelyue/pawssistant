@@ -26,7 +26,8 @@ PetScreen（主窗口，50×50，置顶，无边框，吸附边缘）
   ├── TodoEditScreen（800×620，居中模态）
   ├── FavoritesEditScreen（750×600，居中模态）
   ├── AppCenterScreen（720×580，居中模态）
-  └── VibeTaskScreen（200×36，顶部状态条，置顶）
+  ├── VibeTaskScreen（200×36，顶部状态条，置顶）
+  └── SubAppWindowScreen（960×720，居中模态，可最小化/关闭，无圆角毛玻璃）
 ```
 
 ### 窗口通信
@@ -62,8 +63,45 @@ PetScreen（主窗口，50×50，置顶，无边框，吸附边缘）
 
 ## 应用中心
 
-`AppSquarePanel` 展示最多 8 个可启动应用。`AppConfig`（在 `app_square_panel.dart`）从可执行文件目录向上查找包含 `sub_app/` 的项目根目录来解析相对路径。
+`AppSquarePanel` 展示最多 8 个可启动应用。应用分为两类：
 
-应用来源：
+- **Plugin 子应用**（`launchType: "plugin"`）：Flutter package，通过 `SubApp` 抽象接口注册，在独立窗口中渲染。点击时由 `SubAppWindowScreen` 承载
+- **外部程序**（`launchType: "executable"`）：通过 `Process.start()` 启动 .exe，用于自定义用户应用
+
+### 子应用 Plugin 架构
+
+```
+lib/core/
+  sub_app.dart              ← SubApp 抽象接口（id/name/icon/buildApp）
+  sub_app_registry.dart     ← 静态注册表（工厂函数模式，按需实例化）
+  sub_app_bootstrap.dart    ← 启动引导（import + register 所有子应用）
+
+sub_apps/                   ← 子应用 package 目录（path: 依赖引入）
+  <name>/
+    pubspec.yaml            ← 依赖 pawssistant（SubApp 接口）+ 功能插件
+    lib/<name>_app.dart     ← SubApp 实现（胶水代码，组合插件 UI）
+    assets/                 ← 图标等资源
+```
+
+**新增子应用流程**：创建 `sub_apps/<name>/` package → `pubspec.yaml` 加 `path:` 依赖 → `sub_app_bootstrap.dart` 加 import + register → `apps_config.json` 加条目（`launchType: "plugin"`）。
+
+**通信流程**：
+```
+AppSquarePanel / AppCenterScreen
+  → menuChannel / panelChannel 发 'launch_sub_app'
+    → PetScreen._showSubAppWindow()
+      → WindowController.create(type: 'sub_app')
+        → SubAppWindowScreen → SubAppRegistry.byId() → buildApp()
+```
+
+### 应用配置
+
 - 系统应用：`lib/config/apps_config.json`（内置于应用）
 - 自定义应用：`~/.pawssistant/custom_apps.json`（通过 AppCenterScreen 添加）
+- `AppConfig.projectRoot`：从可执行文件目录向上查找 `sub_app/` 或 `sub_apps/` 目录来解析相对路径
+
+### 当前已注册的子应用
+
+| ID | 名称 | 插件 | 功能 |
+|----|------|------|------|
+| `image_handler` | 图像处理器 | `pawssistant_plugin_image_processer` | 裁剪旋转、格式转换、扩图、背景填充、水印 |
