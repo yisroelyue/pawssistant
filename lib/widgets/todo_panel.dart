@@ -225,9 +225,8 @@ class _TodoPanelState extends State<TodoPanel> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hoveredId = item.id),
       onExit: (_) => setState(() => _hoveredId = null),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
+      child: Container(
+        key: ValueKey(item.id),
         margin: const EdgeInsets.symmetric(vertical: 1),
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         decoration: BoxDecoration(

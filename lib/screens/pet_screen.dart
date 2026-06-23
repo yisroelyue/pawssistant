@@ -154,7 +154,12 @@ class _PetScreenState extends State<PetScreen> {
         // 设置保存后刷新菜单面板
         if (_menuWindow != null) {
           try {
-            await _menuWindow!.invokeMethod('refresh_balance');
+            await Future.wait([
+              _menuWindow!.invokeMethod('refresh_balance'),
+              _menuWindow!.invokeMethod('refresh_todos'),
+              _menuWindow!.invokeMethod('refresh_favorites'),
+              _menuWindow!.invokeMethod('refresh_panel_apps'),
+            ]);
           } catch (_) {}
         }
         await _syncVibeWindow();

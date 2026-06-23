@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:window_manager/window_manager.dart';
 
 import '../config/constants.dart';
+import '../config/settings.dart';
 import '../widgets/app_square_panel.dart';
 import '../widgets/balance_panel.dart';
 import '../widgets/favorites_panel.dart';
@@ -13,7 +13,7 @@ import '../widgets/frosted_panel.dart';
 import '../widgets/interactive_icon.dart';
 import '../widgets/todo_panel.dart';
 
-class MenuScreen extends StatelessWidget {
+class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
 
   static const menuChannel = WindowMethodChannel(
@@ -34,10 +34,66 @@ class MenuScreen extends StatelessWidget {
   static void triggerFavoritesRefresh() => favoritesRefreshNotifier.value++;
 
   @override
+  State<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends State<MenuScreen> {
+  bool _balanceHidden = false;
+  bool _todoHidden = false;
+  bool _favoritesHidden = false;
+  bool _appsHidden = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHiddenPanels();
+    MenuScreen.refreshNotifier.addListener(_onSettingsChanged);
+  }
+
+  @override
+  void dispose() {
+    MenuScreen.refreshNotifier.removeListener(_onSettingsChanged);
+    super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    _loadHiddenPanels();
+  }
+
+  Future<void> _loadHiddenPanels() async {
+    final s = await SettingsService.load();
+    if (!mounted) return;
+    setState(() {
+      _balanceHidden = !s.showBalancePanel;
+      _todoHidden = !s.showTodoPanel;
+      _favoritesHidden = !s.showFavoritesPanel;
+      _appsHidden = !s.showAppSquarePanel;
+    });
+  }
+
+  void _openPanelDetail(String key) {
+    switch (key) {
+      case 'balance':
+        MenuScreen.menuChannel.invokeMethod('open_settings');
+      case 'todo':
+        MenuScreen.menuChannel.invokeMethod('open_todo_editor', {
+          'id': '',
+          'title': '',
+        });
+      case 'favorites':
+        MenuScreen.menuChannel.invokeMethod('open_favorites_editor', {
+          'folderId': '',
+        });
+      case 'apps':
+        MenuScreen.menuChannel.invokeMethod('open_app_center');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => menuChannel.invokeMethod('menu_enter'),
-      onExit: (_) => menuChannel.invokeMethod('menu_exit'),
+      onEnter: (_) => MenuScreen.menuChannel.invokeMethod('menu_enter'),
+      onExit: (_) => MenuScreen.menuChannel.invokeMethod('menu_exit'),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
@@ -81,7 +137,7 @@ class MenuScreen extends StatelessWidget {
             ),
           ),
           InteractiveIcon(
-            onTap: () => menuChannel.invokeMethod('open_settings'),
+            onTap: () => MenuScreen.menuChannel.invokeMethod('open_settings'),
             child: SvgPicture.asset(
               'assets/svg/设置.svg',
               width: 20,
@@ -119,6 +175,21 @@ class MenuScreen extends StatelessWidget {
   }
 
   Widget _buildBottomRow() {
+    final hiddenIcons = <Widget>[];
+
+    if (_balanceHidden) {
+      hiddenIcons.add(_buildPanelToggleIcon('balance', Icons.account_balance_wallet_rounded));
+    }
+    if (_todoHidden) {
+      hiddenIcons.add(_buildPanelToggleSvg('todo', 'assets/svg/笔记.svg'));
+    }
+    if (_favoritesHidden) {
+      hiddenIcons.add(_buildPanelToggleSvg('favorites', 'assets/svg/收藏.svg'));
+    }
+    if (_appsHidden) {
+      hiddenIcons.add(_buildPanelToggleSvg('apps', 'assets/svg/应用.svg'));
+    }
+
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 6),
       child: Row(
@@ -132,24 +203,34 @@ class MenuScreen extends StatelessWidget {
               size: 22,
             ),
           ),
-          const Spacer(),
-          InteractiveIcon(
-            size: 36,
-            onTap: () async {
-              await menuChannel.invokeMethod('exit');
-              await windowManager.destroy();
-            },
-            child: SvgPicture.asset(
-              'assets/svg/退出.svg',
-              width: 25,
-              height: 25,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
+          ...hiddenIcons,
         ],
+      ),
+    );
+  }
+
+  Widget _buildPanelToggleIcon(String key, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: InteractiveIcon(
+        size: 32,
+        onTap: () => _openPanelDetail(key),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildPanelToggleSvg(String key, String assetPath) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: InteractiveIcon(
+        size: 32,
+        onTap: () => _openPanelDetail(key),
+        child: SvgPicture.asset(
+          assetPath,
+          width: 20,
+          height: 20,
+        ),
       ),
     );
   }

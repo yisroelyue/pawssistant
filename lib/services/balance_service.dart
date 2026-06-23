@@ -67,14 +67,6 @@ class BalanceService {
           );
       final body = await response.transform(utf8.decoder).join();
 
-      debugPrint('Status: ${response.statusCode}');
-      if (body.length <= 500) {
-        debugPrint('Body: $body');
-      } else {
-        debugPrint('Body: ${body.substring(0, 500)}...');
-      }
-      debugPrint('━━━━━━━━━━━━━━━━━━');
-
       if (response.statusCode != 200) {
         throw BalanceException('HTTP ${response.statusCode}');
       }

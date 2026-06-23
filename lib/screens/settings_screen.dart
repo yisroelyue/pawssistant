@@ -24,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  final _detailScrollController = ScrollController();
   _SettingCategory _selected = _SettingCategory.display;
 
   late final TextEditingController _apiKeyController;
@@ -87,6 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _apiKeyController.dispose();
     _balanceUrlController.dispose();
+    _detailScrollController.dispose();
     super.dispose();
   }
 
@@ -188,8 +190,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildDetailPanel() {
     return Scrollbar(
+      controller: _detailScrollController,
       child: ListView(
-        primary: true,
+        controller: _detailScrollController,
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
         children: switch (_selected) {
           _SettingCategory.api     => _buildApiSettings(),
