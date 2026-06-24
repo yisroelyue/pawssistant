@@ -146,6 +146,21 @@ class _AppSquarePanelState extends State<AppSquarePanel> {
   }
 
   Widget _buildAppIcon(AppInfo app) {
+    // Use Flutter asset system when the icon is an asset path (works in release).
+    if (app.icon.startsWith('assets/')) {
+      if (app.icon.endsWith('.svg')) {
+        return SvgPicture.asset(app.icon, width: 22, height: 22);
+      }
+      return Image.asset(
+        app.icon,
+        width: 22,
+        height: 22,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.apps, color: Colors.white70, size: 22),
+      );
+    }
+
+    // Fallback: filesystem path (debug mode, or absolute paths).
     final iconPath = AppConfig.resolvePath(app.icon);
     final file = File(iconPath);
     if (!file.existsSync()) {
@@ -373,20 +388,61 @@ class AppConfig {
     return '$projectRoot/$raw';
   }
 
+  static const _systemAppsJson = '''
+{
+  "apps": [
+    {
+      "id": "image_handler",
+      "name": "图像处理器",
+      "launchType": "plugin",
+      "subAppId": "image_handler",
+      "executable": null,
+      "icon": "assets/svg/图像处理.svg",
+      "description": "图片格式转换与处理",
+      "type": "system"
+    },
+    {
+      "id": "screen_record",
+      "name": "屏幕录制",
+      "launchType": "plugin",
+      "subAppId": "screen_record",
+      "executable": null,
+      "icon": "assets/png/录制.png",
+      "description": "录制全屏视频",
+      "type": "system"
+    }
+  ]
+}
+''';
+
   static List<AppInfo> loadSystemApps() {
+    // Try filesystem first (works in debug mode when source tree is accessible).
     try {
       final file = File(systemConfigPath);
-      if (!file.existsSync()) return [];
-      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      if (file.existsSync()) {
+        final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+        final list = json['apps'] as List<dynamic>?;
+        if (list != null) {
+          return list
+              .map((e) => AppInfo.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to embedded config (release build — source tree not available).
+    try {
+      final json = jsonDecode(_systemAppsJson) as Map<String, dynamic>;
       final list = json['apps'] as List<dynamic>?;
-      if (list == null) return [];
-      return list
-          .map((e) => AppInfo.fromJson(e as Map<String, dynamic>))
-          .toList();
+      if (list != null) {
+        return list
+            .map((e) => AppInfo.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
     } catch (e) {
-      debugPrint('Failed to load system apps config: $e');
-      return [];
+      debugPrint('Failed to load embedded system apps: $e');
     }
+    return [];
   }
 
   static List<AppInfo> loadCustomApps() {

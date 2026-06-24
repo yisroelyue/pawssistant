@@ -14,12 +14,14 @@ import 'app.dart';
 import 'config/constants.dart';
 import 'config/settings.dart';
 import 'core/sub_app_bootstrap.dart';
+import 'screens/about_screen.dart';
 import 'screens/app_center_screen.dart';
 import 'screens/favorites_edit_screen.dart';
 import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sub_app_window_screen.dart';
 import 'screens/todo_edit_screen.dart';
+import 'services/log_service.dart';
 
 import 'screens/vibe_task_screen.dart';
 
@@ -29,10 +31,14 @@ const _windowShapeChannel = MethodChannel('pawssistant_window_shape');
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LogService.init();
+  LogService.info('Pawssistant starting | args: $args');
+
   await windowManager.ensureInitialized();
   bootstrapSubApps();
 
   final windowController = await WindowController.fromCurrentEngine();
+  LogService.info('Window controller ready | id=${windowController.windowId}');
   final windowArguments = _parseWindowArguments(windowController.arguments);
   if (windowArguments['type'] == 'menu') {
     await Window.initialize();
@@ -83,6 +89,12 @@ Future<void> main(List<String> args) async {
     runApp(SubAppWindowScreen(subAppId: subAppId));
     return;
   }
+  if (windowArguments['type'] == 'about') {
+    await Window.initialize();
+    await _configureAboutWindow(windowController, windowArguments);
+    runApp(const AboutScreen());
+    return;
+  }
 
   await _configurePetWindow();
   await _ensureSettingsFile();
@@ -102,14 +114,77 @@ Future<void> _initSystemTray() async {
     toolTip: 'Pawssistant',
   );
 
+  // On Windows, right-click events must be handled manually to show the menu.
+  systemTray.registerSystemTrayEventHandler((eventName) {
+    if (eventName == kSystemTrayEventRightClick) {
+      systemTray.popUpContextMenu();
+    }
+  });
+
   final menu = Menu();
   await menu.buildFrom([
     MenuItemLabel(
+      label: '设置',
+      onClicked: (_) => _openSettingsFromTray(),
+    ),
+    MenuItemLabel(
+      label: '关于',
+      onClicked: (_) => _openAboutFromTray(),
+    ),
+    MenuItemLabel(
       label: '退出',
-      onClicked: (menuItem) => windowManager.destroy(),
+      onClicked: (_) async {
+        await windowManager.hide();
+        await systemTray.destroy();
+        exit(0);
+      },
     ),
   ]);
   await systemTray.setContextMenu(menu);
+}
+
+Future<void> _openSettingsFromTray() async {
+  const settingsWidth = 800.0;
+  const settingsHeight = 550.0;
+
+  final display = await screenRetriever.getPrimaryDisplay();
+  final screenSize = display.visibleSize ?? display.size;
+  final left = (screenSize.width - settingsWidth) / 2;
+  final top = (screenSize.height - settingsHeight) / 2;
+
+  await WindowController.create(
+    WindowConfiguration(
+      arguments: jsonEncode({
+        'type': 'settings',
+        'left': left,
+        'top': top,
+        'width': settingsWidth,
+        'height': settingsHeight,
+      }),
+    ),
+  );
+}
+
+Future<void> _openAboutFromTray() async {
+  const aboutWidth = 420.0;
+  const aboutHeight = 480.0;
+
+  final display = await screenRetriever.getPrimaryDisplay();
+  final screenSize = display.visibleSize ?? display.size;
+  final left = (screenSize.width - aboutWidth) / 2;
+  final top = (screenSize.height - aboutHeight) / 2;
+
+  await WindowController.create(
+    WindowConfiguration(
+      arguments: jsonEncode({
+        'type': 'about',
+        'left': left,
+        'top': top,
+        'width': aboutWidth,
+        'height': aboutHeight,
+      }),
+    ),
+  );
 }
 
 Future<void> _ensureSettingsFile() async {
@@ -398,6 +473,36 @@ Future<void> _configureSubAppWindow(
       if (!noAcrylic.contains(arguments['subAppId'])) {
         await _applyAcrylic();
       }
+    },
+  );
+}
+
+Future<void> _configureAboutWindow(
+  WindowController windowController,
+  Map<String, dynamic> arguments,
+) async {
+  final bounds = _boundsFromArguments(arguments);
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: bounds.size,
+      backgroundColor: const Color(0xFFF0F0F0),
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+      alwaysOnTop: false,
+    ),
+    () async {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setMinimumSize(bounds.size);
+      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setBounds(bounds);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setBackgroundColor(const Color(0xFFF0F0F0));
+      await windowManager.setSkipTaskbar(false);
+      await windowManager.setTitle('About Pawssistant');
+      await windowManager.setPreventClose(true);
+      await windowManager.show();
     },
   );
 }

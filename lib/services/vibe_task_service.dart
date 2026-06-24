@@ -152,6 +152,7 @@ class VibeTaskService {
   void start() {
     stop();
     _ensureStateDirectory();
+    _removeStaleFiles(); // clean up stale files immediately on startup
     _readAllFiles();
     _startWatching();
     _cleanupTimer = Timer.periodic(
@@ -269,29 +270,57 @@ class VibeTaskService {
   void _publish() {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    _tasks.removeWhere((_, task) {
-      if (task.timestamp == null) return false;
+    final toRemove = <String>{};
+    _tasks.forEach((sessionId, task) {
+      if (task.timestamp == null) return;
       final age = now - task.timestamp!;
 
       // Always expire stale tasks (crashed sessions that never sent Stop).
-      if (age > _staleTaskMs) return true;
+      if (age > _staleTaskMs) {
+        toRemove.add(sessionId);
+        return;
+      }
 
       // Remove finished tasks after the visibility window.
       switch (task.status) {
         case VibeTaskStatus.completed:
         case VibeTaskStatus.failed:
         case VibeTaskStatus.stopped:
-          return age > _doneVisibilityMs;
+          if (age > _doneVisibilityMs) {
+            toRemove.add(sessionId);
+          }
         default:
-          return false;
+          break;
       }
     });
+
+    // Delete files for removed tasks so they don't accumulate on disk.
+    for (final sessionId in toRemove) {
+      _deleteTaskFiles(sessionId);
+      _tasks.remove(sessionId);
+    }
 
     final list = _tasks.values.toList()
       ..sort((a, b) => (b.timestamp ?? 0).compareTo(a.timestamp ?? 0));
 
     if (!_listEquals(list, _notifier.value)) {
       _notifier.value = list;
+    }
+  }
+
+  void _deleteTaskFiles(String sessionId) {
+    try {
+      final dir = _stateDirectory;
+      final jsonFile = File('${dir.path}/vibe_task_$sessionId.json');
+      if (jsonFile.existsSync()) {
+        jsonFile.deleteSync();
+      }
+      final signalFile = File('${dir.path}/vibe_task_$sessionId.signal');
+      if (signalFile.existsSync()) {
+        signalFile.deleteSync();
+      }
+    } catch (error) {
+      debugPrint('Failed to delete task files for $sessionId: $error');
     }
   }
 
@@ -303,7 +332,10 @@ class VibeTaskService {
     try {
       final dir = _stateDirectory;
       if (!dir.existsSync()) return;
-      final cutoff = DateTime.now().subtract(const Duration(hours: 1));
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final hardCutoff = DateTime.now().subtract(const Duration(hours: 1));
+
       for (final file in dir.listSync()) {
         if (file is! File) continue;
         final name = file.uri.pathSegments.last;
@@ -311,11 +343,50 @@ class VibeTaskService {
         // Clean stale .json files
         final jsonMatch = _fileNamePattern.firstMatch(name);
         if (jsonMatch != null) {
-          if (file.lastModifiedSync().isBefore(cutoff)) {
+          final sessionId = jsonMatch.group(1)!;
+          bool shouldDelete = false;
+
+          // Hard cutoff: any file untouched for >1 hour is definitely orphaned.
+          if (file.lastModifiedSync().isBefore(hardCutoff)) {
+            shouldDelete = true;
+          } else {
+            // Try status-aware cleanup for files within the 1-hour window.
+            try {
+              final content = file.readAsStringSync();
+              if (content.trim().isEmpty) {
+                shouldDelete = true;
+              } else {
+                final json = jsonDecode(content) as Map<String, dynamic>;
+                final ts = _asInt(json['timestamp']);
+                if (ts != null) {
+                  final age = now - ts;
+                  if (age > _staleTaskMs) {
+                    shouldDelete = true; // crashed / never finished
+                  } else {
+                    final status = VibeTaskStatus.fromString(
+                        json['status'] as String? ?? 'idle');
+                    switch (status) {
+                      case VibeTaskStatus.completed:
+                      case VibeTaskStatus.failed:
+                      case VibeTaskStatus.stopped:
+                        shouldDelete = age > _doneVisibilityMs;
+                        break;
+                      default:
+                        break;
+                    }
+                  }
+                }
+              }
+            } catch (_) {
+              // If parsing fails, rely on the hard cutoff above.
+            }
+          }
+
+          if (shouldDelete) {
             try {
               file.deleteSync();
-              // Also delete corresponding .signal file
-              final signalFile = File('${dir.path}/vibe_task_${jsonMatch.group(1)}.signal');
+              final signalFile =
+                  File('${dir.path}/vibe_task_$sessionId.signal');
               if (signalFile.existsSync()) {
                 signalFile.deleteSync();
               }
@@ -329,7 +400,8 @@ class VibeTaskService {
         // Clean orphan .signal files (no corresponding .json)
         final signalMatch = _signalPattern.firstMatch(name);
         if (signalMatch != null) {
-          final jsonFile = File('${dir.path}/vibe_task_${signalMatch.group(1)}.json');
+          final jsonFile =
+              File('${dir.path}/vibe_task_${signalMatch.group(1)}.json');
           if (!jsonFile.existsSync()) {
             try {
               file.deleteSync();
@@ -340,7 +412,9 @@ class VibeTaskService {
           continue;
         }
       }
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('Vibe task stale file cleanup error: $error');
+    }
   }
 
   // ---------------------------------------------------------------------------

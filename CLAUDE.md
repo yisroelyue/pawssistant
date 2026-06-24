@@ -13,11 +13,11 @@ flutter analyze
 
 ## 架构：多窗口桌面助手
 
-Flutter 桌面应用，宠物图标 50×50px，可拖拽、自动吸附屏幕边缘。每个"页面"都是**独立的原生窗口**（`desktop_multi_window`），通过 `WindowMethodChannel` 通信，不是单窗口路由。
+Flutter 桌面应用，助手图标 50×50px，可拖拽、自动吸附屏幕边缘。每个"页面"都是**独立的原生窗口**（`desktop_multi_window`），通过 `WindowMethodChannel` 通信，不是单窗口路由。
 
 ### 窗口关系
 
-`main.dart` 根据 `arguments['type']` 分发窗口。无 `type` 的为首个宠物窗口，其余由 `PetScreen` 通过 `WindowController.create()` 创建。
+`main.dart` 根据 `arguments['type']` 分发窗口。无 `type` 的为首个助手窗口，其余由 `PetScreen` 通过 `WindowController.create()` 创建。
 
 ```
 PetScreen（主窗口，50×50，置顶，无边框，吸附边缘）
@@ -39,7 +39,7 @@ PetScreen（主窗口，50×50，置顶，无边框，吸附边缘）
 ### Windows 原生层（`windows/runner/flutter_window.cpp`）
 
 - `pawssistant_window_shape`：`setRoundedRegion` 通过 `CreateRoundRectRgn` 给无边框窗口加圆角
-- `pawssistant_file_drop`：将拖拽到宠物窗口的文件路径发给 Flutter 层，存入收藏
+- `pawssistant_file_drop`：将拖拽到助手窗口的文件路径发给 Flutter 层，存入收藏
 - `DesktopMultiWindowSetWindowCreatedCallback` 中剥离子窗口的 `WS_CAPTION | WS_THICKFRAME` 等样式，保持无边框以适配毛玻璃效果
 
 ## 持久化数据

@@ -1,4 +1,4 @@
-/// 桌面宠物配置常量
+/// 桌面助手配置常量
 class PetConfig {
   PetConfig._();
 
