@@ -50,6 +50,10 @@ dependencies:
   pawssistant_plugin_screen_record:
     path: plugins/screen_record
 
+dependency_overrides:
+  desktop_multi_window:
+    path: packages/desktop_multi_window
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

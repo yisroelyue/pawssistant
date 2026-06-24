@@ -150,6 +150,15 @@ bool FlutterWindow::OnCreate() {
   if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     return false;
   }
+
+  // IMPORTANT: SetChildContent must be called BEFORE RegisterPlugins.
+  // desktop_multi_window's registration (DesktopMultiWindowPluginRegisterWithRegistrar)
+  // calls FlutterDesktopPluginRegistrarGetView to obtain the HWND. In release/AOT
+  // mode the Flutter engine defers view association until SetChildContent is called,
+  // so calling RegisterPlugins first causes GetView to return NULL and the
+  // mixin.one/desktop_multi_window channel to never be registered.
+  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+
   RegisterPlugins(flutter_controller_->engine());
   RegisterWindowShapeChannel(flutter_controller_->engine()->messenger(),
                              GetHandle());
@@ -187,7 +196,6 @@ bool FlutterWindow::OnCreate() {
                  SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE |
                      SWP_FRAMECHANGED);
   });
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
