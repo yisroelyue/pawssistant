@@ -12,6 +12,7 @@ import '../widgets/favorites_panel.dart';
 import '../widgets/frosted_panel.dart';
 import '../widgets/interactive_icon.dart';
 import '../widgets/todo_panel.dart';
+import '../widgets/translate_panel.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -39,6 +40,7 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   bool _balanceHidden = false;
+  bool _translateHidden = false;
   bool _todoHidden = false;
   bool _favoritesHidden = false;
   bool _appsHidden = false;
@@ -65,6 +67,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (!mounted) return;
     setState(() {
       _balanceHidden = !s.showBalancePanel;
+      _translateHidden = !s.showTranslatePanel;
       _todoHidden = !s.showTodoPanel;
       _favoritesHidden = !s.showFavoritesPanel;
       _appsHidden = !s.showAppSquarePanel;
@@ -73,8 +76,6 @@ class _MenuScreenState extends State<MenuScreen> {
 
   void _openPanelDetail(String key) {
     switch (key) {
-      case 'balance':
-        MenuScreen.menuChannel.invokeMethod('open_settings');
       case 'todo':
         MenuScreen.menuChannel.invokeMethod('open_todo_editor', {
           'id': '',
@@ -87,6 +88,18 @@ class _MenuScreenState extends State<MenuScreen> {
       case 'apps':
         MenuScreen.menuChannel.invokeMethod('open_app_center');
     }
+  }
+
+  Future<void> _showPanel(String key) async {
+    final s = await SettingsService.load();
+    switch (key) {
+      case 'balance':
+        s.showBalancePanel = true;
+      case 'translate':
+        s.showTranslatePanel = true;
+    }
+    await SettingsService.save(s);
+    MenuScreen.triggerRefresh();
   }
 
   @override
@@ -157,16 +170,19 @@ class _MenuScreenState extends State<MenuScreen> {
     return ListView.separated(
       primary: true,
       padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: 4,
+      itemCount: 5,
       separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (_, index) {
         if (index == 0) {
           return const BalancePanel();
         }
         if (index == 1) {
-          return const TodoPanel();
+          return const TranslatePanel();
         }
         if (index == 2) {
+          return const TodoPanel();
+        }
+        if (index == 3) {
           return const FavoritesPanel();
         }
         return const AppSquarePanel();
@@ -178,7 +194,10 @@ class _MenuScreenState extends State<MenuScreen> {
     final hiddenIcons = <Widget>[];
 
     if (_balanceHidden) {
-      hiddenIcons.add(_buildPanelToggleIcon('balance', Icons.account_balance_wallet_rounded));
+      hiddenIcons.add(_buildPanelActionIcon('balance', Icons.account_balance_wallet_rounded, () => _showPanel('balance')));
+    }
+    if (_translateHidden) {
+      hiddenIcons.add(_buildPanelActionIcon('translate', Icons.translate_rounded, () => _showPanel('translate')));
     }
     if (_todoHidden) {
       hiddenIcons.add(_buildPanelToggleSvg('todo', 'assets/svg/笔记.svg'));
@@ -215,6 +234,17 @@ class _MenuScreenState extends State<MenuScreen> {
       child: InteractiveIcon(
         size: 32,
         onTap: () => _openPanelDetail(key),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildPanelActionIcon(String key, IconData icon, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: InteractiveIcon(
+        size: 32,
+        onTap: onTap,
         child: Icon(icon, color: Colors.white, size: 20),
       ),
     );

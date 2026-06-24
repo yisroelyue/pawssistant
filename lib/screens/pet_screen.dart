@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../config/constants.dart';
 import '../config/settings.dart';
+import '../core/sub_app_registry.dart';
 import '../screens/app_center_screen.dart';
 import '../screens/favorites_edit_screen.dart';
 import '../screens/todo_edit_screen.dart';
@@ -417,10 +418,14 @@ class _PetScreenState extends State<PetScreen> {
     } catch (_) {}
     _subAppWindow = null;
 
+    final subApp = SubAppRegistry.byId(subAppId);
+    final preferredSize = subApp?.preferredWindowSize ??
+        const Size(_subAppDefaultWidth, _subAppDefaultHeight);
+
     final display = await screenRetriever.getPrimaryDisplay();
     final screenSize = display.visibleSize ?? display.size;
-    final left = (screenSize.width - _subAppDefaultWidth) / 2;
-    final top = (screenSize.height - _subAppDefaultHeight) / 2;
+    final left = (screenSize.width - preferredSize.width) / 2;
+    final top = (screenSize.height - preferredSize.height) / 2;
 
     final createdWindow = await WindowController.create(
       WindowConfiguration(
@@ -429,8 +434,8 @@ class _PetScreenState extends State<PetScreen> {
           'subAppId': subAppId,
           'left': left,
           'top': top,
-          'width': _subAppDefaultWidth,
-          'height': _subAppDefaultHeight,
+          'width': preferredSize.width,
+          'height': preferredSize.height,
         }),
       ),
     );

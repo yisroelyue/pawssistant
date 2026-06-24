@@ -29,6 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late final TextEditingController _apiKeyController;
   late final TextEditingController _balanceUrlController;
+  late final TextEditingController _chatUrlController;
   String _platform = 'deepseek';
   bool _obscureApiKey = true;
   String _currencySymbol = '¥';
@@ -36,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _autoStart = false;
   String _language = 'zh';
   bool _showBalancePanel = true;
+  bool _showTranslatePanel = true;
   bool _showTodoPanel = true;
   bool _showFavoritesPanel = true;
   bool _showAppSquarePanel = true;
@@ -59,6 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _apiKeyController = TextEditingController();
     _balanceUrlController = TextEditingController();
+    _chatUrlController = TextEditingController();
     _loadSettings();
   }
 
@@ -70,11 +73,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _platform = s.platform;
       _apiKeyController.text = s.apiKey;
       _balanceUrlController.text = s.balanceUrl;
+      _chatUrlController.text =
+          s.chatUrl.isEmpty ? PlatformConfig.defaultChatUrl(s.platform) : s.chatUrl;
       _currencySymbol = s.currencySymbol;
       _refreshInterval = s.refreshInterval;
       _autoStart = s.autoStart;
       _language = s.language;
       _showBalancePanel = s.showBalancePanel;
+      _showTranslatePanel = s.showTranslatePanel;
       _showTodoPanel = s.showTodoPanel;
       _showFavoritesPanel = s.showFavoritesPanel;
       _showAppSquarePanel = s.showAppSquarePanel;
@@ -88,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _apiKeyController.dispose();
     _balanceUrlController.dispose();
+    _chatUrlController.dispose();
     _detailScrollController.dispose();
     super.dispose();
   }
@@ -210,6 +217,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _buildApiKeyField(),
       const SizedBox(height: 14),
       _buildBalanceUrlField(),
+      const SizedBox(height: 14),
+      _buildChatUrlField(),
     ];
   }
 
@@ -221,6 +230,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const SizedBox(height: 8),
       _buildPanelToggle('Vibe任务监控', _showVibePanel, (v) => setState(() => _showVibePanel = v), compact: true),
       const SizedBox(height: 12),
+      _buildPanelToggle('翻译', _showTranslatePanel, (v) => setState(() => _showTranslatePanel = v)),
+      const SizedBox(height: 8),
       _buildPanelToggle('我的笔记', _showTodoPanel, (v) => setState(() => _showTodoPanel = v)),
       const SizedBox(height: 8),
       _buildPanelToggle('我的收藏', _showFavoritesPanel, (v) => setState(() => _showFavoritesPanel = v)),
@@ -332,6 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           setState(() {
             _platform = v;
             _balanceUrlController.text = PlatformConfig.defaultBalanceUrl(v);
+            _chatUrlController.text = PlatformConfig.defaultChatUrl(v);
           });
         },
       ),
@@ -346,6 +358,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: const TextStyle(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'https://api.deepseek.com/user/balance',
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatUrlField() {
+    return _FieldWrapper(
+      label: 'Chat API',
+      child: TextField(
+        controller: _chatUrlController,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'https://api.deepseek.com/v1/chat/completions',
           hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
           filled: true,
           fillColor: Colors.white.withValues(alpha: 0.08),
@@ -563,11 +596,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       platform: _platform,
       apiKey: _apiKeyController.text.trim(),
       balanceUrl: _balanceUrlController.text.trim(),
+      chatUrl: _chatUrlController.text.trim(),
       currencySymbol: _currencySymbol,
       refreshInterval: _refreshInterval,
       autoStart: _autoStart,
       language: _language,
       showBalancePanel: _showBalancePanel,
+      showTranslatePanel: _showTranslatePanel,
       showTodoPanel: _showTodoPanel,
       showFavoritesPanel: _showFavoritesPanel,
       showAppSquarePanel: _showAppSquarePanel,

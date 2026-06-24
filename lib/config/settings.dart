@@ -13,11 +13,13 @@ class AppSettings {
     this.autoStart = false,
     this.language = 'zh',
     this.showBalancePanel = true,
+    this.showTranslatePanel = true,
     this.showTodoPanel = true,
     this.showFavoritesPanel = true,
     this.showAppSquarePanel = true,
     this.showVibePanel = true,
     this.panelAppIds = const [],
+    this.chatUrl = '',
   });
 
   String platform;
@@ -28,11 +30,13 @@ class AppSettings {
   bool autoStart;
   String language;
   bool showBalancePanel;
+  bool showTranslatePanel;
   bool showTodoPanel;
   bool showFavoritesPanel;
   bool showAppSquarePanel;
   bool showVibePanel;
   List<String> panelAppIds;
+  String chatUrl;
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
@@ -44,6 +48,7 @@ class AppSettings {
       autoStart: json['autoStart'] as bool? ?? false,
       language: json['language'] as String? ?? 'zh',
       showBalancePanel: json['showBalancePanel'] as bool? ?? true,
+      showTranslatePanel: json['showTranslatePanel'] as bool? ?? true,
       showTodoPanel: json['showTodoPanel'] as bool? ?? true,
       showFavoritesPanel: json['showFavoritesPanel'] as bool? ?? true,
       showAppSquarePanel: json['showAppSquarePanel'] as bool? ?? true,
@@ -52,6 +57,7 @@ class AppSettings {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      chatUrl: json['chatUrl'] as String? ?? '',
     );
   }
 
@@ -64,11 +70,13 @@ class AppSettings {
         'autoStart': autoStart,
         'language': language,
         'showBalancePanel': showBalancePanel,
+        'showTranslatePanel': showTranslatePanel,
         'showTodoPanel': showTodoPanel,
         'showFavoritesPanel': showFavoritesPanel,
         'showAppSquarePanel': showAppSquarePanel,
         'showVibePanel': showVibePanel,
         'panelAppIds': panelAppIds,
+        'chatUrl': chatUrl,
       };
 }
 

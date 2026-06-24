@@ -35,7 +35,7 @@ class SubAppWindowScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         body: Column(
           children: [
-            _buildTitleBar(subApp.name),
+            if (subApp.showWindowTitleBar) _buildTitleBar(subApp.name),
             Expanded(child: subApp.buildApp(context)),
           ],
         ),

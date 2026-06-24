@@ -20,6 +20,7 @@ import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sub_app_window_screen.dart';
 import 'screens/todo_edit_screen.dart';
+
 import 'screens/vibe_task_screen.dart';
 
 const _menuCornerRadius = 24.0;
@@ -386,15 +387,17 @@ Future<void> _configureSubAppWindow(
     () async {
       await windowManager.setAsFrameless();
       await windowManager.setHasShadow(false);
-      await windowManager.setMinimumSize(bounds.size);
-      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setMinimumSize(const Size(200, 48));
       await windowManager.setBounds(bounds);
       await windowManager.setAlwaysOnTop(false);
       await windowManager.setBackgroundColor(Colors.transparent);
       await windowManager.setSkipTaskbar(false);
       await windowManager.setTitle('Pawssistant Sub App');
       await windowManager.show();
-      await _applyAcrylic(); // 只应用毛玻璃，不添加圆角
+      final noAcrylic = {'screen_record', 'image_handler'};
+      if (!noAcrylic.contains(arguments['subAppId'])) {
+        await _applyAcrylic();
+      }
     },
   );
 }

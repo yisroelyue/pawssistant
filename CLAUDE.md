@@ -76,14 +76,15 @@ lib/core/
   sub_app_registry.dart     ← 静态注册表（工厂函数模式，按需实例化）
   sub_app_bootstrap.dart    ← 启动引导（import + register 所有子应用）
 
-sub_apps/                   ← 子应用 package 目录（path: 依赖引入）
-  <name>/
-    pubspec.yaml            ← 依赖 pawssistant（SubApp 接口）+ 功能插件
-    lib/<name>_app.dart     ← SubApp 实现（胶水代码，组合插件 UI）
-    assets/                 ← 图标等资源
+lib/sub_apps/
+  <name>_app.dart           ← SubApp 实现（胶水代码，组合插件 UI）
+
+plugins/<name>/             ← 功能插件（UI + 原生代码），monorepo 内直接依赖
 ```
 
-**新增子应用流程**：创建 `sub_apps/<name>/` package → `pubspec.yaml` 加 `path:` 依赖 → `sub_app_bootstrap.dart` 加 import + register → `apps_config.json` 加条目（`launchType: "plugin"`）。
+**新增子应用流程**：在 `plugins/<name>/` 创建 plugin → 根 `pubspec.yaml` 加 path 依赖 → `lib/sub_apps/<name>_app.dart` 实现 SubApp → `sub_app_bootstrap.dart` 加 import + register → `apps_config.json` 加条目（`launchType: "plugin"`）。
+
+**插件 monorepo 结构**：两个插件已从独立仓库移入 `plugins/` 目录，便于统一 git 管理。路径依赖为 `plugins/image_processer` 和 `plugins/screen_record`。
 
 **通信流程**：
 ```
@@ -105,3 +106,4 @@ AppSquarePanel / AppCenterScreen
 | ID | 名称 | 插件 | 功能 |
 |----|------|------|------|
 | `image_handler` | 图像处理器 | `pawssistant_plugin_image_processer` | 裁剪旋转、格式转换、扩图、背景填充、水印 |
+| `screen_record` | 屏幕录制 | `pawssistant_plugin_screen_record` | 录制全屏视频，支持暂停/恢复 |

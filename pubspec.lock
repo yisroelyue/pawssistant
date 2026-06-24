@@ -208,13 +208,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.9.1"
-  image_handler_app:
-    dependency: "direct main"
-    description:
-      path: "sub_apps/image_handler"
-      relative: true
-    source: path
-    version: "1.0.0"
   jni:
     dependency: transitive
     description:
@@ -394,7 +387,14 @@ packages:
   pawssistant_plugin_image_processer:
     dependency: "direct main"
     description:
-      path: "../pawssistant_plugin_image_processer"
+      path: "plugins/image_processer"
+      relative: true
+    source: path
+    version: "0.0.1"
+  pawssistant_plugin_screen_record:
+    dependency: "direct main"
+    description:
+      path: "plugins/screen_record"
       relative: true
     source: path
     version: "0.0.1"

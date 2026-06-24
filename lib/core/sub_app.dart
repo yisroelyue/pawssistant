@@ -20,6 +20,9 @@ abstract class SubApp {
   /// 窗口大小，默认 800×600
   Size get preferredWindowSize => const Size(800, 600);
 
+  /// 是否显示窗口标题栏，默认 true。屏幕录制等需要无边框的可覆盖为 false。
+  bool get showWindowTitleBar => true;
+
   /// 构建子应用主界面（在独立窗口中显示）
   Widget buildApp(BuildContext context);
 }

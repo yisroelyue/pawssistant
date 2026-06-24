@@ -28,4 +28,40 @@ class PlatformConfig {
   static String assetPath(String key) {
     return platforms[key]?.asset ?? 'assets/png/plugins/deepseek.png';
   }
+
+  /// 各平台 Chat API 默认端点
+  static String defaultChatUrl(String key) {
+    return switch (key) {
+      'deepseek' => 'https://api.deepseek.com/v1/chat/completions',
+      'openai'   => 'https://api.openai.com/v1/chat/completions',
+      'anthropic'=> 'https://api.anthropic.com/v1/messages',
+      'doubao'   => 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+      _          => 'https://api.deepseek.com/v1/chat/completions',
+    };
+  }
+
+  /// 各平台默认翻译模型（轻量、快速、便宜）
+  static String defaultChatModel(String key) {
+    return switch (key) {
+      'deepseek' => 'deepseek-chat',
+      'openai'   => 'gpt-3.5-turbo',
+      'anthropic'=> 'claude-3-haiku-20240307',
+      'doubao'   => 'doubao-lite-32k',
+      _          => 'deepseek-chat',
+    };
+  }
+
+  /// 返回认证头 Map（Anthropic 用 x-api-key，其他用 Authorization: Bearer）
+  static Map<String, String> chatAuthHeaders(String key, String apiKey) {
+    if (key == 'anthropic') {
+      return {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      };
+    }
+    return {'Authorization': 'Bearer $apiKey'};
+  }
+
+  /// 是否为 Anthropic 平台（请求/响应格式不同）
+  static bool isAnthropicPlatform(String key) => key == 'anthropic';
 }
