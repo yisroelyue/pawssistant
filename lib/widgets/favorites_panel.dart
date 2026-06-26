@@ -153,7 +153,7 @@ class _FavoritesPanelState extends State<FavoritesPanel> {
         padding: EdgeInsets.symmetric(vertical: 10),
         child: Center(
           child: Text(
-            '拖拽文件到小助手即可收藏',
+            '拖拽文件到悬浮球即可收藏',
             style: TextStyle(color: Colors.white, fontSize: 13),
           ),
         ),

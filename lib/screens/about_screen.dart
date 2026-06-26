@@ -36,7 +36,7 @@ class _AboutScreenState extends State<AboutScreen> with WindowListener {
   }
 
   static const _features = [
-    '🖥️  桌面助手',
+    '🖥️  悬浮球',
     '💰  AI流量管理',
     '🤖  Vibe Coding任务状态监视',
     '🌐  翻译',
@@ -82,7 +82,7 @@ class _AboutScreenState extends State<AboutScreen> with WindowListener {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Logo
+                    // 悬浮球图标
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.asset(
@@ -102,7 +102,7 @@ class _AboutScreenState extends State<AboutScreen> with WindowListener {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      '桌面助手 · 多功能助手伴侣',
+                      '悬浮球 · 多功能助手伴侣',
                       style: TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                     const SizedBox(height: 20),

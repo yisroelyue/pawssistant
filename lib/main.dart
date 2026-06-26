@@ -21,6 +21,7 @@ import 'screens/menu_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sub_app_window_screen.dart';
 import 'screens/todo_edit_screen.dart';
+import 'screens/todo_item_popup.dart';
 import 'services/log_service.dart';
 
 import 'screens/vibe_task_screen.dart';
@@ -61,6 +62,12 @@ Future<void> main(List<String> args) async {
     await Window.initialize();
     await _configureTodoEditWindow(windowController, windowArguments);
     runApp(const TodoEditScreen());
+    return;
+  }
+  if (windowArguments['type'] == 'todo_item_popup') {
+    await Window.initialize();
+    await _configureTodoItemPopupWindow(windowController, windowArguments);
+    runApp(const TodoItemPopup());
     return;
   }
   if (windowArguments['type'] == 'favorites_edit') {
@@ -381,6 +388,36 @@ Future<void> _configureTodoEditWindow(
       await windowManager.setTitle('Pawssistant Todo Edit');
       await windowManager.show();
       await _applySettingsWindowEffects();
+    },
+  );
+}
+
+Future<void> _configureTodoItemPopupWindow(
+  WindowController windowController,
+  Map<String, dynamic> arguments,
+) async {
+  final bounds = _boundsFromArguments(arguments);
+  LogService.info('TodoItemPopup config | bounds: $bounds');
+  await windowManager.waitUntilReadyToShow(
+    WindowOptions(
+      size: bounds.size,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: true,
+      titleBarStyle: TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+      alwaysOnTop: true,
+    ),
+    () async {
+      await windowManager.setAsFrameless();
+      await windowManager.setHasShadow(false);
+      await windowManager.setMinimumSize(bounds.size);
+      await windowManager.setMaximumSize(bounds.size);
+      await windowManager.setBounds(bounds);
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setBackgroundColor(Colors.transparent);
+      await windowManager.setSkipTaskbar(true);
+      await windowManager.setTitle('编辑笔记');
+      // Don't show yet — the popup screen will show itself after loading data.
     },
   );
 }

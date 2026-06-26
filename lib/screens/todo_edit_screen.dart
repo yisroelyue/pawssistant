@@ -495,6 +495,9 @@ class _TodoEditScreenState extends State<TodoEditScreen>
           child: TextField(
             controller: _addController,
             cursorColor: Colors.white70,
+            minLines: 1,
+            maxLines: 6,
+            keyboardType: TextInputType.multiline,
             style: const TextStyle(color: Colors.white, fontSize: 16),
             decoration: InputDecoration(
               hintText: '添加新笔记...',
@@ -503,7 +506,6 @@ class _TodoEditScreenState extends State<TodoEditScreen>
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: InputBorder.none,
             ),
-            onSubmitted: (_) => _addTodo(),
           ),
         ),
         InteractiveIcon(

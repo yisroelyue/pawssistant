@@ -6,12 +6,14 @@ class TodoItem {
     required this.id,
     required this.title,
     this.completed = false,
+    this.important = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
   String title;
   bool completed;
+  bool important;
   final DateTime createdAt;
 
   factory TodoItem.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,7 @@ class TodoItem {
       id: json['id'] as String,
       title: json['title'] as String,
       completed: json['completed'] as bool? ?? false,
+      important: json['important'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
@@ -29,6 +32,7 @@ class TodoItem {
         'id': id,
         'title': title,
         'completed': completed,
+        'important': important,
         'createdAt': createdAt.toIso8601String(),
       };
 }
@@ -99,6 +103,14 @@ class TodoService {
   static Future<void> remove(String id) async {
     final todos = await loadAll();
     todos.removeWhere((t) => t.id == id);
+    await saveAll(todos);
+  }
+
+  static Future<void> markImportant(String id) async {
+    final todos = await loadAll();
+    final idx = todos.indexWhere((t) => t.id == id);
+    if (idx == -1) return;
+    todos[idx].important = !todos[idx].important;
     await saveAll(todos);
   }
 }

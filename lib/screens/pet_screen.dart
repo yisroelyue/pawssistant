@@ -15,6 +15,7 @@ import '../core/sub_app_registry.dart';
 import '../screens/app_center_screen.dart';
 import '../screens/favorites_edit_screen.dart';
 import '../screens/todo_edit_screen.dart';
+import '../screens/todo_item_popup.dart';
 import '../services/favorites_service.dart';
 
 class PetScreen extends StatefulWidget {
@@ -41,6 +42,8 @@ class _PetScreenState extends State<PetScreen> {
   static const _appCenterHeight = 580.0;
   static const _subAppDefaultWidth = 800.0;
   static const _subAppDefaultHeight = 600.0;
+  static const _todoItemPopupWidth = 500.0;
+  static const _todoItemPopupHeight = 300.0;
   static const _menuChannel = WindowMethodChannel(
     'pawssistant_menu_events',
     mode: ChannelMode.unidirectional,
@@ -58,10 +61,12 @@ class _PetScreenState extends State<PetScreen> {
   WindowController? _favoritesEditWindow;
   WindowController? _appCenterWindow;
   WindowController? _subAppWindow;
+  WindowController? _todoItemPopupWindow;
   Timer? _hideTimer;
   bool _isHoveringPet = false;
   bool _isHoveringMenu = false;
   bool _menuLocked = false;
+  bool _isDragging = false;
 
   // 吸附状态
   _SnapEdge _snapEdge = _SnapEdge.right;
@@ -73,6 +78,7 @@ class _PetScreenState extends State<PetScreen> {
     _settingsChannel.setMethodCallHandler(_handleSettingsEvent);
     _dropChannel.setMethodCallHandler(_handleDropEvent);
     TodoEditScreen.editChannel.setMethodCallHandler(_handleTodoEditEvent);
+    TodoItemPopup.popupChannel.setMethodCallHandler(_handleTodoItemPopupEvent);
     FavoritesEditScreen.editChannel.setMethodCallHandler(_handleFavoritesEditEvent);
     AppCenterScreen.panelChannel.setMethodCallHandler(_handleAppCenterEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -115,6 +121,16 @@ class _PetScreenState extends State<PetScreen> {
       case 'unlock_menu':
         _menuLocked = false;
         _scheduleMenuHide();
+        return;
+      case 'open_todo_item_popup':
+        final args = call.arguments;
+        if (args is Map) {
+          _showTodoItemPopup({
+            'id': args['id'] as String? ?? '',
+            'title': args['title'] as String? ?? '',
+            'important': args['important'] as bool? ?? false,
+          });
+        }
         return;
       case 'open_todo_editor':
         final args = call.arguments;
@@ -328,6 +344,33 @@ class _PetScreenState extends State<PetScreen> {
     }
   }
 
+  Future<void> _handleTodoItemPopupEvent(MethodCall call) async {
+    switch (call.method) {
+      case 'todo_item_saved':
+        if (_menuWindow != null) {
+          try {
+            await _menuWindow!.invokeMethod('refresh_todos');
+          } catch (_) {}
+        }
+        _menuLocked = false;
+        _scheduleMenuHide();
+        return;
+      case 'todo_item_marked':
+        if (_menuWindow != null) {
+          try {
+            await _menuWindow!.invokeMethod('refresh_todos');
+          } catch (_) {}
+        }
+        return;
+      case 'todo_item_dismissed':
+        _menuLocked = false;
+        _scheduleMenuHide();
+        return;
+      default:
+        throw MissingPluginException('Not implemented: ${call.method}');
+    }
+  }
+
   Future<void> _handleFavoritesEditEvent(MethodCall call) async {
     switch (call.method) {
       case 'favorites_changed':
@@ -442,6 +485,51 @@ class _PetScreenState extends State<PetScreen> {
     _subAppWindow = createdWindow;
   }
 
+  Future<void> _showTodoItemPopup(Map<String, dynamic> item) async {
+    // Position to the left of the menu
+    final menuBounds = await _calculateMenuBounds();
+    final popupLeft = menuBounds.left - _todoItemPopupWidth - 8;
+    final popupTop = menuBounds.top +
+        (menuBounds.height - _todoItemPopupHeight) / 2 - 60;
+
+    // Reuse existing window
+    if (_todoItemPopupWindow != null) {
+      try {
+        await _todoItemPopupWindow!.invokeMethod('set_data', {
+          'id': item['id'],
+          'title': item['title'],
+          'important': item['important'],
+          'left': popupLeft,
+          'top': popupTop,
+          'width': _todoItemPopupWidth,
+          'height': _todoItemPopupHeight,
+        });
+        _menuLocked = true;
+        return;
+      } catch (_) {
+        _todoItemPopupWindow = null;
+      }
+    }
+
+    final createdWindow = await WindowController.create(
+      WindowConfiguration(
+        hiddenAtLaunch: true,
+        arguments: jsonEncode({
+          'type': 'todo_item_popup',
+          'id': item['id'],
+          'title': item['title'],
+          'important': item['important'],
+          'left': popupLeft,
+          'top': popupTop,
+          'width': _todoItemPopupWidth,
+          'height': _todoItemPopupHeight,
+        }),
+      ),
+    );
+    _todoItemPopupWindow = createdWindow;
+    _menuLocked = true;
+  }
+
   Future<void> _showTodoEditor(Map<String, dynamic> item) async {
     try {
       await _todoEditWindow?.hide();
@@ -531,10 +619,10 @@ class _PetScreenState extends State<PetScreen> {
 
     switch (_snapEdge) {
       case _SnapEdge.top:
-        // 平边在上 → 菜单在下方
+        // 悬浮球在上 → 菜单在下方
         left = petBounds.center.dx - _menuWidth / 2;
         top = petBounds.bottom + _menuGap;
-        // 下方可用高度 = 工作区高度 - pet高度 - 间隙，不遮挡 pet
+        // 下方可用高度 = 工作区高度 - 悬浮球高度 - 间隙，不遮挡悬浮球
         height = screenBounds.bottom - top;
         // 下方空间不够则改到上方
         if (height < 150) {
@@ -542,7 +630,7 @@ class _PetScreenState extends State<PetScreen> {
           top = screenBounds.top;
         }
       case _SnapEdge.bottom:
-        // 平边在下 → 菜单在上方
+        // 悬浮球在下 → 菜单在上方
         left = petBounds.center.dx - _menuWidth / 2;
         height = petBounds.top - _menuGap - screenBounds.top;
         top = petBounds.top - _menuGap - height;
@@ -552,7 +640,7 @@ class _PetScreenState extends State<PetScreen> {
           height = screenBounds.bottom - top;
         }
       case _SnapEdge.left:
-        // 平边在左 → 菜单在右侧
+        // 悬浮球在左 → 菜单在右侧
         left = petBounds.right + _menuGap;
         top = screenBounds.top;
         height = screenBounds.height;
@@ -561,7 +649,7 @@ class _PetScreenState extends State<PetScreen> {
           left = petBounds.left - _menuGap - _menuWidth;
         }
       case _SnapEdge.right:
-        // 平边在右 → 菜单在左侧
+        // 悬浮球在右 → 菜单在左侧
         left = petBounds.left - _menuGap - _menuWidth;
         top = screenBounds.top;
         height = screenBounds.height;
@@ -590,32 +678,39 @@ class _PetScreenState extends State<PetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) {
-        _showMenu();
-      },
-      onExit: (_) {
+    return _PetBody(
+      snapEdge: _snapEdge,
+      isDragging: _isDragging,
+      onEnter: () => _showMenu(),
+      onExit: () {
         _isHoveringPet = false;
         _scheduleMenuHide();
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) async {
-          _hideMenuNow();
-          // 系统级拖拽，流畅不卡；SendMessage 同步阻塞，完成后即为松手。
-          await windowManager.startDragging();
-          _snapToNearestEdge();
-        },
-        child: _PetBody(snapEdge: _snapEdge),
-      ),
+      onDragStart: () async {
+        _hideMenuNow();
+        setState(() => _isDragging = true);
+        await windowManager.startDragging();
+        setState(() => _isDragging = false);
+        _snapToNearestEdge();
+      },
     );
   }
 }
 
 class _PetBody extends StatelessWidget {
-  const _PetBody({required this.snapEdge});
+  const _PetBody({
+    required this.snapEdge,
+    required this.isDragging,
+    required this.onEnter,
+    required this.onExit,
+    required this.onDragStart,
+  });
 
   final _SnapEdge snapEdge;
+  final bool isDragging;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final VoidCallback onDragStart;
 
   double get _rotation {
     switch (snapEdge) {
@@ -634,37 +729,34 @@ class _PetBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // debugPrint(
-        //   '窗口: ${constraints.maxWidth.toStringAsFixed(1)}×'
-        //   '${constraints.maxHeight.toStringAsFixed(1)}',
-        // );
         return SizedBox(
           width: PetConfig.windowWidth,
           height: PetConfig.windowHeight,
           child: Transform.rotate(
             angle: _rotation,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // 半胶囊 — 平边贴顶(旋转前)，底部圆角
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(40),
-                    ),
-                    child: Container(
-                      color: Colors.grey.shade800.withValues(alpha: 0.75),
+            child: Transform.translate(
+              offset: Offset(
+                0,
+                isDragging ? 0 : -PetConfig.windowHeight / 2,
+              ),
+              child: MouseRegion(
+                onEnter: (_) => onEnter(),
+                onExit: (_) => onExit(),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (_) => onDragStart(),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xE1E1E1E3),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.grey.shade800,
+                        width: 8,
+                      ),
                     ),
                   ),
                 ),
-                // Logo
-                Image.asset(
-                  PetConfig.logoSprite,
-                  fit: BoxFit.contain,
-                  width: 25,
-                  height: 25,
-                ),
-              ],
+              ),
             ),
           ),
         );

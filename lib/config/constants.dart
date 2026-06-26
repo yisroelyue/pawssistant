@@ -1,4 +1,4 @@
-/// 桌面助手配置常量
+/// 悬浮球配置常量
 class PetConfig {
   PetConfig._();
 
@@ -7,6 +7,6 @@ class PetConfig {
   static const double windowHeight = 50.0;
 
 
-  /// logo资源路径
+  /// 悬浮球图标资源路径
   static const String logoSprite = 'assets/png/logo_out.png';
 }
